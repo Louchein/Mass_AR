@@ -66,25 +66,61 @@
           height="0.5" 
           position="0 0 -1" 
           rotation="0 0 0"
-          play-on-detected
         ></a-video>
       </a-entity>
     </a-scene>
     
     <script>
-      // Custom script to handle video playback
-      document.addEventListener('DOMContentLoaded', () => {
-        const sceneEl = document.querySelector('a-scene');
-        const videoEl = document.querySelector('#target-video');
+        document.addEventListener('DOMContentLoaded', () => {
+            const sceneEl = document.querySelector('a-scene');
+            const videoEl = document.querySelector('#target-video');
+            const debugInfo = document.querySelector('#debug-info');
+            const videoPlane = document.querySelector('#video-plane');
 
-        sceneEl.addEventListener('targetFound', (event) => {
-            videoEl.play();
-        });
+            // Comprehensive logging and debugging
+            function updateDebugInfo(targetStatus, videoStatus) {
+                debugInfo.innerHTML = `
+                    Target Status: ${targetStatus}<br>
+                    Video Status: ${videoStatus}<br>
+                    Video Ready State: ${videoEl.readyState}<br>
+                    Video Paused: ${videoEl.paused}<br>
+                    Video Ended: ${videoEl.ended}
+                `;
+            }
 
-        sceneEl.addEventListener('targetLost', (event) => {
-            videoEl.pause();
+            // Event Listeners for Video and Target
+            sceneEl.addEventListener('targetFound', (event) => {
+                console.log('Target Found Event');
+                updateDebugInfo('Detected', 'Attempting to Play');
+
+                // Multiple play attempts
+                videoEl.currentTime = 0;
+                videoEl.play().then(() => {
+                    console.log('Video Play Successful');
+                    updateDebugInfo('Detected', 'Playing');
+                }).catch((error) => {
+                    console.error('Video Play Error:', error);
+                    updateDebugInfo('Detected', 'Play Failed');
+                });
+            });
+
+            sceneEl.addEventListener('targetLost', (event) => {
+                console.log('Target Lost Event');
+                videoEl.pause();
+                updateDebugInfo('Not Detected', 'Paused');
+            });
+
+            // Initial video preparation
+            videoEl.addEventListener('canplay', () => {
+                console.log('Video Can Play');
+                updateDebugInfo('Not Detected', 'Ready');
+            });
+
+            videoEl.addEventListener('error', (e) => {
+                console.error('Video Error:', e);
+                updateDebugInfo('Not Detected', 'Error Loading');
+            });
         });
-      });
     </script>
     
   </body>
