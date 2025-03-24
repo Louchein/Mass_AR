@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
       #debug-info {
         position: fixed;
         top: 10px;
         left: 10px;
-        background: rgba(0,0,0,0.7);
+        background: rgba(0, 0, 0, 0.7);
         color: white;
         padding: 10px;
         z-index: 1000;
@@ -17,132 +18,190 @@
       }
     </style>
   </head>
-  
   <body>
     <!-- Debug Information Display -->
     <div id="debug-info">
-      Target Status: Not Detected<br>
-      Video Status: Not Playing
+      Target Status: Not Detected<br />
+      Video/Model Status: Not Active
     </div>
-    
+
     <a-scene
-      mindar-image="imageTargetSrc:https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/targets_02.mind?v=1742843606733;
-                    maxTrack: 1; 
-                    filterMinCF: 0.001; 
-                    filterBeta: 0.001"
-      color-space="sRGB" 
-      renderer="colorManagement: true, physicallyCorrectLights" 
+      mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/band.mind; 
+                     maxTrack: 2"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false">
-      
-      <!-- Asset Management -->
+      device-orientation-permission-ui="enabled: false"
+    >
       <a-assets>
-        <!-- Replace 'your-video.mp4' with the path to your actual video file -->
-        <video 
-          id="target-video" 
-          src="https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/Lanzamiento%20Estados%20Whatsapp%20Unalhaus.mp4?v=1742845586103" 
+        <!-- 3D Models -->
+        <a-asset-item
+          id="bearModel"
+          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"
+        ></a-asset-item>
+        <a-asset-item
+          id="raccoonModel"
+          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"
+        ></a-asset-item>
+
+        <!-- Videos for each target -->
+        <video
+          id="raccoon-video"
+          src="raccoon-video.mp4"
           preload="auto"
           webkit-playsinline
           playsinline
           crossorigin="anonymous"
-         ></video>
+        ></video>
+        <video
+          id="bear-video"
+          src="bear-video.mp4"
+          preload="auto"
+          webkit-playsinline
+          playsinline
+          crossorigin="anonymous"
+        ></video>
       </a-assets>
-      
-      <!-- Camera -->
+
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-      
-      <!--
+
+      <!-- Raccoon Target (Index 0) -->
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-sphere position="0 0 0" radius="0.25" color="#EF2D5E" ></a-sphere>
-      </a-entity>
-      -->
-      
-      <!-- Entity -->
-      <a-entity mindar-image-target="targetIndex: 0">
+        <!-- 3D Model -->
+        <a-gltf-model
+          id="raccoon-model"
+          rotation="0 0 0"
+          position="0 -0.25 0"
+          scale="0.05 0.05 0.05"
+          src="#raccoonModel"
+          animation-mixer
+        ></a-gltf-model>
+
         <!-- Video Plane -->
-        <a-video 
-          id="video-plane"
-          src="#target-video" 
-          width="1" 
-          height="0.5" 
-          position="0 0 -1" 
+        <a-video
+          id="raccoon-video-plane"
+          src="#raccoon-video"
+          width="1"
+          height="0.5"
+          position="0 0.5 -1"
+          rotation="0 0 0"
+        ></a-video>
+      </a-entity>
+
+      <!-- Bear Target (Index 1) -->
+      <a-entity mindar-image-target="targetIndex: 1">
+        <!-- 3D Model -->
+        <a-gltf-model
+          id="bear-model"
+          rotation="0 0 0"
+          position="0 -0.25 0"
+          scale="0.05 0.05 0.05"
+          src="#bearModel"
+          animation-mixer
+        ></a-gltf-model>
+
+        <!-- Video Plane -->
+        <a-video
+          id="bear-video-plane"
+          src="#bear-video"
+          width="1"
+          height="0.5"
+          position="0 0.5 -1"
           rotation="0 0 0"
         ></a-video>
       </a-entity>
     </a-scene>
-    
+
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const sceneEl = document.querySelector('a-scene');
-            const videoEl = document.querySelector('#target-video');
-            const debugInfo = document.querySelector('#debug-info');
-            const videoPlane = document.querySelector('#video-plane');
+      document.addEventListener("DOMContentLoaded", () => {
+        const sceneEl = document.querySelector("a-scene");
+        const debugInfo = document.querySelector("#debug-info");
 
-            let lastPlaybackTime = 0;
-            let isTargetCurrentlyDetected = false;
+        // Video and model configurations
+        const targets = [
+          {
+            videoEl: document.querySelector("#raccoon-video"),
+            modelEl: document.querySelector("#raccoon-model"),
+            videoPlaneEl: document.querySelector("#raccoon-video-plane"),
+            lastPlaybackTime: 0,
+            isTargetDetected: false,
+          },
+          {
+            videoEl: document.querySelector("#bear-video"),
+            modelEl: document.querySelector("#bear-model"),
+            videoPlaneEl: document.querySelector("#bear-video-plane"),
+            lastPlaybackTime: 0,
+            isTargetDetected: false,
+          },
+        ];
 
-            // Comprehensive logging and debugging
-            function updateDebugInfo(targetStatus, videoStatus) {
-                debugInfo.innerHTML = `
-                    Target Status: ${targetStatus}<br>
-                    Video Status: ${videoStatus}<br>
-                    Last Playback Time: ${lastPlaybackTime.toFixed(2)}s<br>
-                    Current Time: ${videoEl.currentTime.toFixed(2)}s
-                `;
+        // Update debug information
+        function updateDebugInfo() {
+          const activeTargets = targets.filter((t) => t.isTargetDetected);
+          debugInfo.innerHTML = activeTargets
+            .map(
+              (target, index) => `
+                    Target ${index} Status: ${
+                target.isTargetDetected ? "Detected" : "Not Detected"
+              }<br>
+                    Video Status: ${
+                      !target.videoEl.paused ? "Playing" : "Paused"
+                    }<br>
+                    Last Playback Time: ${target.lastPlaybackTime.toFixed(2)}s
+                `
+            )
+            .join("<br>");
+        }
+
+        // Handle target found for each target
+        targets.forEach((target, index) => {
+          sceneEl.addEventListener(`targetFound-${index}`, (event) => {
+            target.isTargetDetected = true;
+
+            // Show video plane
+            target.videoPlaneEl.setAttribute("visible", true);
+
+            // Resume video from last known time
+            target.videoEl.currentTime = target.lastPlaybackTime;
+            target.videoEl.play().catch(console.error);
+
+            // Optional: pause animation mixer while video plays
+            target.modelEl.setAttribute("animation-mixer", "play: false");
+
+            updateDebugInfo();
+          });
+
+          sceneEl.addEventListener(`targetLost-${index}`, (event) => {
+            // Store current video time
+            target.lastPlaybackTime = target.videoEl.currentTime;
+
+            // Pause video
+            target.videoEl.pause();
+
+            // Hide video plane
+            target.videoPlaneEl.setAttribute("visible", false);
+
+            // Resume model animation
+            target.modelEl.setAttribute("animation-mixer", "play: true");
+
+            target.isTargetDetected = false;
+            updateDebugInfo();
+          });
+
+          // Continuous time tracking
+          target.videoEl.addEventListener("timeupdate", () => {
+            if (target.isTargetDetected) {
+              target.lastPlaybackTime = target.videoEl.currentTime;
+              updateDebugInfo();
             }
-
-            // Event Listeners for Video and Target
-            sceneEl.addEventListener('targetFound', (event) => {
-                console.log('Target Found Event');
-                isTargetCurrentlyDetected = true;
-                updateDebugInfo('Detected', 'Attempting to Play');
-
-                // Play from last known timestamp
-                videoEl.currentTime = lastPlaybackTime;
-                videoEl.play().then(() => {
-                    console.log('Video Play Successful');
-                    updateDebugInfo('Detected', 'Playing');
-                }).catch((error) => {
-                    console.error('Video Play Error:', error);
-                    updateDebugInfo('Detected', 'Play Failed');
-                });
-            });
-
-            sceneEl.addEventListener('targetLost', (event) => {
-                console.log('Target Lost Event');
-                
-                // Store the current playback time before pausing
-                lastPlaybackTime = videoEl.currentTime;
-                videoEl.pause();
-                isTargetCurrentlyDetected = false;
-                updateDebugInfo('Not Detected', 'Paused');
-            });
-
-            // Track playback time continuously
-            videoEl.addEventListener('timeupdate', () => {
-                if (isTargetCurrentlyDetected) {
-                    lastPlaybackTime = videoEl.currentTime;
-                }
-                
-                // Optional: Update debug info during playback
-                updateDebugInfo(
-                    isTargetCurrentlyDetected ? 'Detected' : 'Not Detected', 
-                    videoEl.paused ? 'Paused' : 'Playing'
-                );
-            });
-
-            // Initial video preparation
-            videoEl.addEventListener('canplay', () => {
-                console.log('Video Can Play');
-                updateDebugInfo('Not Detected', 'Ready');
-            });
-
-            videoEl.addEventListener('error', (e) => {
-                console.error('Video Error:', e);
-                updateDebugInfo('Not Detected', 'Error Loading');
-            });
+          });
         });
+
+        // Initial setup to hide video planes
+        targets.forEach((target) => {
+          target.videoPlaneEl.setAttribute("visible", false);
+        });
+      });
     </script>
-    
   </body>
 </html>
