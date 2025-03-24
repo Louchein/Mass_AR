@@ -61,6 +61,7 @@
       <a-entity mindar-image-target="targetIndex: 0">
         <!-- Video Plane -->
         <a-video 
+          id="video-plane"
           src="#target-video" 
           width="1" 
           height="0.5" 
@@ -77,24 +78,27 @@
             const debugInfo = document.querySelector('#debug-info');
             const videoPlane = document.querySelector('#video-plane');
 
+            let lastPlaybackTime = 0;
+            let isTargetCurrentlyDetected = false;
+
             // Comprehensive logging and debugging
             function updateDebugInfo(targetStatus, videoStatus) {
                 debugInfo.innerHTML = `
                     Target Status: ${targetStatus}<br>
                     Video Status: ${videoStatus}<br>
-                    Video Ready State: ${videoEl.readyState}<br>
-                    Video Paused: ${videoEl.paused}<br>
-                    Video Ended: ${videoEl.ended}
+                    Last Playback Time: ${lastPlaybackTime.toFixed(2)}s<br>
+                    Current Time: ${videoEl.currentTime.toFixed(2)}s
                 `;
             }
 
             // Event Listeners for Video and Target
             sceneEl.addEventListener('targetFound', (event) => {
                 console.log('Target Found Event');
+                isTargetCurrentlyDetected = true;
                 updateDebugInfo('Detected', 'Attempting to Play');
 
-                // Multiple play attempts
-                videoEl.currentTime = 0;
+                // Play from last known timestamp
+                videoEl.currentTime = lastPlaybackTime;
                 videoEl.play().then(() => {
                     console.log('Video Play Successful');
                     updateDebugInfo('Detected', 'Playing');
@@ -106,8 +110,25 @@
 
             sceneEl.addEventListener('targetLost', (event) => {
                 console.log('Target Lost Event');
+                
+                // Store the current playback time before pausing
+                lastPlaybackTime = videoEl.currentTime;
                 videoEl.pause();
+                isTargetCurrentlyDetected = false;
                 updateDebugInfo('Not Detected', 'Paused');
+            });
+
+            // Track playback time continuously
+            videoEl.addEventListener('timeupdate', () => {
+                if (isTargetCurrentlyDetected) {
+                    lastPlaybackTime = videoEl.currentTime;
+                }
+                
+                // Optional: Update debug info during playback
+                updateDebugInfo(
+                    isTargetCurrentlyDetected ? 'Detected' : 'Not Detected', 
+                    videoEl.paused ? 'Paused' : 'Playing'
+                );
             });
 
             // Initial video preparation
