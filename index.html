@@ -30,13 +30,22 @@
                     maxTrack: 1; 
                     filterMinCF: 0.001; 
                     filterBeta: 0.001"
+      color-space="sRGB" 
+      renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
       
       <!-- Asset Management -->
       <a-assets>
         <!-- Replace 'your-video.mp4' with the path to your actual video file -->
-        <video id="target-video" src="https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/Lanzamiento%20Estados%20Whatsapp%20Unalhaus.mp4?v=1742845586103" webkit-playsinline playsinline></video>
+        <video 
+          id="target-video" 
+          src="https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/Lanzamiento%20Estados%20Whatsapp%20Unalhaus.mp4?v=1742845586103" 
+          preload="auto"
+          webkit-playsinline
+          playsinline
+          crossorigin="anonymous"
+         ></video>
       </a-assets>
       
       <!-- Camera -->
