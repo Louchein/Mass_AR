@@ -1,6 +1,6 @@
-<!html>
+<!DOCTYPE html>
 <html>
-  <head>
+<head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
@@ -17,113 +17,91 @@
             font-family: monospace;
         }
     </style>
-  </head>
-  <body>
+</head>
+<body>
+    <!-- Debug Information Display -->
     <div id="debug-info">
         Target Status: Not Detected<br>
         Video/Model Status: Not Active
     </div>
 
     <a-scene 
-        mindar-image="imageTargetSrc: ./targets.mind; 
-                     maxTrack: 3" 
+        mindar-image="imageTargetSrc: https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/targets_03_wBand.mind?v=1742850728072; 
+                     maxTrack: 2" 
         color-space="sRGB" 
         renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: false">
-      
-      <a-assets>
-        <!-- 3D Models -->
-        <a-asset-item id="bearModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"></a-asset-item>
-        <a-asset-item id="raccoonModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"></a-asset-item>
         
-        <!-- Videos for each target -->
-        <video 
-            id="tag-video" 
-            src="tag-video.mp4" 
-            preload="auto" 
-            webkit-playsinline 
-            playsinline 
-            crossorigin="anonymous"
-        ></video>
-        <video 
-            id="raccoon-video" 
-            src="raccoon-video.mp4" 
-            preload="auto" 
-            webkit-playsinline 
-            playsinline 
-            crossorigin="anonymous"
-        ></video>
-        <video 
-            id="bear-video" 
-            src="bear-video.mp4" 
-            preload="auto" 
-            webkit-playsinline 
-            playsinline 
-            crossorigin="anonymous"
-        ></video>
-      </a-assets>
+        <a-assets>
+            <!-- 3D Models -->
+            <a-asset-item id="bearModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"></a-asset-item>
+            <a-asset-item id="raccoonModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"></a-asset-item>
+            
+            <!-- Videos for each target -->
+            <video 
+                id="raccoon-video" 
+                src="raccoon-test-video.mp4" 
+                preload="auto" 
+                webkit-playsinline 
+                playsinline 
+                crossorigin="anonymous"
+            ></video>
+            <video 
+                id="bear-video" 
+                src="bear-test-video.mp4" 
+                preload="auto" 
+                webkit-playsinline 
+                playsinline 
+                crossorigin="anonymous"
+            ></video>
+        </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Tag Video Target (Index 0) -->
-      <a-entity mindar-image-target="targetIndex: 0">
-        <!-- Video Plane -->
-        <a-video 
-            id="tag-video-plane"
-            src="#tag-video" 
-            width="1" 
-            height="0.5" 
-            position="0 0.5 -1" 
-            rotation="0 0 0"
-        ></a-video>
-      </a-entity>
+        <!-- Raccoon Target (Index 0) -->
+        <a-entity mindar-image-target="targetIndex: 0">
+            <!-- 3D Model -->
+            <a-gltf-model 
+                id="raccoon-model"
+                rotation="0 0 0" 
+                position="0 -0.25 0" 
+                scale="0.05 0.05 0.05" 
+                src="#raccoonModel" 
+                animation-mixer
+            ></a-gltf-model>
+            
+            <!-- Video Plane with Explicit Geometry -->
+            <a-plane 
+                id="raccoon-video-plane"
+                width="1" 
+                height="0.5" 
+                position="0 0.5 -0.5" 
+                material="src: #raccoon-video; transparent: true;"
+            ></a-plane>
+        </a-entity>
 
-      <!-- Raccoon Target (Index 1) -->
-      <a-entity mindar-image-target="targetIndex: 1">
-        <!-- 3D Model -->
-        <a-gltf-model 
-            id="raccoon-model"
-            rotation="0 0 0" 
-            position="0 -0.25 0" 
-            scale="0.05 0.05 0.05" 
-            src="#raccoonModel" 
-            animation-mixer
-        ></a-gltf-model>
-        
-        <!-- Video Plane -->
-        <a-video 
-            id="raccoon-video-plane"
-            src="#raccoon-video" 
-            width="1" 
-            height="0.5" 
-            position="0 0.5 -1" 
-            rotation="0 0 0"
-        ></a-video>
-      </a-entity>
-
-      <!-- Bear Target (Index 2) -->
-      <a-entity mindar-image-target="targetIndex: 2">
-        <!-- 3D Model -->
-        <a-gltf-model 
-            id="bear-model"
-            rotation="0 0 0" 
-            position="0 -0.25 0" 
-            scale="0.05 0.05 0.05" 
-            src="#bearModel" 
-            animation-mixer
-        ></a-gltf-model>
-        
-        <!-- Video Plane -->
-        <a-video 
-            id="bear-video-plane"
-            src="#bear-video" 
-            width="1" 
-            height="0.5" 
-            position="0 0.5 -1" 
-            rotation="0 0 0"
-        ></a-video>
-      </a-entity>
+        <!-- Bear Target (Index 1) -->
+        <a-entity mindar-image-target="targetIndex: 1">
+            <!-- 3D Model -->
+            <a-gltf-model 
+                id="bear-model"
+                rotation="0 0 0" 
+                position="0 -0.25 0" 
+                scale="0.05 0.05 0.05" 
+                src="#bearModel" 
+                animation-mixer
+            ></a-gltf-model>
+            
+            <!-- Video Plane with Explicit Geometry -->
+            <a-plane 
+                id="bear-video-plane"
+                width="1" 
+                height="0.5" 
+                position="0 0.5 -0.5" 
+                material="src: #bear-video; transparent: true;"
+            ></a-plane>
+        </a-entity>
     </a-scene>
 
     <script>
@@ -133,13 +111,6 @@
 
             // Video and model configurations
             const targets = [
-                {
-                    videoEl: document.querySelector('#tag-video'),
-                    videoPlaneEl: document.querySelector('#tag-video-plane'),
-                    modelEl: null,
-                    lastPlaybackTime: 0,
-                    isTargetDetected: false
-                },
                 {
                     videoEl: document.querySelector('#raccoon-video'),
                     modelEl: document.querySelector('#raccoon-model'),
@@ -162,41 +133,60 @@
                 debugInfo.innerHTML = activeTargets.map((target, index) => `
                     Target ${index} Status: ${target.isTargetDetected ? 'Detected' : 'Not Detected'}<br>
                     Video Status: ${!target.videoEl.paused ? 'Playing' : 'Paused'}<br>
+                    Video Ready State: ${target.videoEl.readyState}<br>
                     Last Playback Time: ${target.lastPlaybackTime.toFixed(2)}s
                 `).join('<br>');
             }
 
             // Handle target found for each target
             targets.forEach((target, index) => {
+                // Add console logs for debugging
+                console.log(`Setting up target ${index}`);
+
                 // Debugging video loading
                 target.videoEl.addEventListener('loadedmetadata', () => {
                     console.log(`Video ${index} metadata loaded`);
+                });
+
+                target.videoEl.addEventListener('canplay', () => {
+                    console.log(`Video ${index} can play`);
                 });
 
                 target.videoEl.addEventListener('error', (e) => {
                     console.error(`Video ${index} error:`, e);
                 });
 
-                sceneEl.addEventListener(`targetFound-${index}`, (event) => {
+                // MindAR target events
+                sceneEl.addEventListener(`targetFound`, (event) => {
+                    // Check if this is the correct target
+                    const targetEntity = event.target.querySelector(`[mindar-image-target="targetIndex: ${index}"]`);
+                    if (!targetEntity) return;
+
                     console.log(`Target ${index} found`);
                     target.isTargetDetected = true;
                     
-                    // Show video plane
+                    // Ensure video plane is visible
                     target.videoPlaneEl.setAttribute('visible', true);
                     
                     // Resume video from last known time
                     target.videoEl.currentTime = target.lastPlaybackTime;
-                    target.videoEl.play().catch(console.error);
+                    target.videoEl.play().then(() => {
+                        console.log(`Video ${index} play successful`);
+                    }).catch((err) => {
+                        console.error(`Video ${index} play error:`, err);
+                    });
                     
-                    // Pause model animation if model exists
-                    if (target.modelEl) {
-                        target.modelEl.setAttribute('animation-mixer', 'play: false');
-                    }
+                    // Optional: pause animation mixer while video plays
+                    target.modelEl.setAttribute('animation-mixer', 'play: false');
                     
                     updateDebugInfo();
                 });
 
-                sceneEl.addEventListener(`targetLost-${index}`, (event) => {
+                sceneEl.addEventListener(`targetLost`, (event) => {
+                    // Check if this is the correct target
+                    const targetEntity = event.target.querySelector(`[mindar-image-target="targetIndex: ${index}"]`);
+                    if (!targetEntity) return;
+
                     console.log(`Target ${index} lost`);
                     
                     // Store current video time
@@ -208,10 +198,8 @@
                     // Hide video plane
                     target.videoPlaneEl.setAttribute('visible', false);
                     
-                    // Resume model animation if model exists
-                    if (target.modelEl) {
-                        target.modelEl.setAttribute('animation-mixer', 'play: true');
-                    }
+                    // Resume model animation
+                    target.modelEl.setAttribute('animation-mixer', 'play: true');
                     
                     target.isTargetDetected = false;
                     updateDebugInfo();
@@ -232,5 +220,5 @@
             });
         });
     </script>
-  </body>
+</body>
 </html>
