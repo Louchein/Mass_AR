@@ -16,6 +16,18 @@
             z-index: 1000;
             font-family: monospace;
         }
+        #play-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            display: none;
+        }
     </style>
   </head>
   
@@ -25,6 +37,9 @@
       Target Status: Not Detected<br>
       Video Status: Not Playing
     </div>
+
+    <!-- Manual Play Button -->
+    <button id="play-button">► Tap to Play Video</button>
     
     <a-scene mindar-image="imageTargetSrc: https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/targets_wQR_01.mind?v=1742915774766; 
                            maxTrack: 3" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
@@ -34,13 +49,14 @@
         <a-asset-item id="bearModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"></a-asset-item>
         <a-asset-item id="raccoonModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/raccoon/scene.gltf"></a-asset-item>
         <video 
-                id="target-video" 
-                src="https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/Lanzamiento%20Estados%20Whatsapp%20Unalhaus.mp4?v=1742845586103" 
-                preload="auto" 
-                webkit-playsinline 
-                playsinline 
-                crossorigin="anonymous"
-            ></video>
+            id="target-video" 
+            src="https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/Lanzamiento%20Estados%20Whatsapp%20Unalhaus.mp4?v=1742845586103" 
+            preload="auto" 
+            webkit-playsinline 
+            playsinline 
+            muted 
+            crossorigin="anonymous"
+        ></video>
       </a-assets>
       
       <!-- Camera -->
@@ -68,16 +84,17 @@
 
     </a-scene>
         
-        
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const sceneEl = document.querySelector('a-scene');
             const videoEl = document.querySelector('#target-video');
             const debugInfo = document.querySelector('#debug-info');
             const videoPlane = document.querySelector('#video-plane');
+            const playButton = document.querySelector('#play-button');
 
             let lastPlaybackTime = 0;
             let isTargetCurrentlyDetected = false;
+            let isVideoReady = false;
 
             // Comprehensive logging and debugging
             function updateDebugInfo(targetStatus, videoStatus) {
@@ -85,13 +102,37 @@
                     Target Status: ${targetStatus}<br>
                     Video Status: ${videoStatus}<br>
                     Last Playback Time: ${lastPlaybackTime.toFixed(2)}s<br>
-                    Current Time: ${videoEl.currentTime.toFixed(2)}s
+                    Current Time: ${videoEl.currentTime.toFixed(2)}s<br>
+                    Video Ready: ${isVideoReady}
                 `;
             }
+
+            // Manual play initialization
+            function initializeVideoPlayback() {
+                videoEl.muted = false;
+                videoEl.play().then(() => {
+                    console.log('Initial Video Play Successful');
+                    isVideoReady = true;
+                    playButton.style.display = 'none';
+                }).catch((error) => {
+                    console.error('Initial Video Play Error:', error);
+                    playButton.style.display = 'block';
+                });
+            }
+
+            // Manual play button
+            playButton.addEventListener('click', initializeVideoPlayback);
 
             // Event Listeners for Video and Target
             sceneEl.addEventListener('targetFound', (event) => {
                 console.log('Target Found Event');
+                
+                if (!isVideoReady) {
+                    console.warn('Video not initialized');
+                    playButton.style.display = 'block';
+                    return;
+                }
+
                 isTargetCurrentlyDetected = true;
                 updateDebugInfo('Detected', 'Attempting to Play');
 
@@ -103,6 +144,7 @@
                 }).catch((error) => {
                     console.error('Video Play Error:', error);
                     updateDebugInfo('Detected', 'Play Failed');
+                    playButton.style.display = 'block';
                 });
             });
 
@@ -122,7 +164,6 @@
                     lastPlaybackTime = videoEl.currentTime;
                 }
                 
-                // Optional: Update debug info during playback
                 updateDebugInfo(
                     isTargetCurrentlyDetected ? 'Detected' : 'Not Detected', 
                     videoEl.paused ? 'Paused' : 'Playing'
@@ -138,9 +179,15 @@
             videoEl.addEventListener('error', (e) => {
                 console.error('Video Error:', e);
                 updateDebugInfo('Not Detected', 'Error Loading');
+                playButton.style.display = 'block';
+            });
+
+            // Additional debugging for video loading
+            videoEl.addEventListener('loadedmetadata', () => {
+                console.log('Video Metadata Loaded');
+                playButton.style.display = 'block';
             });
         });
     </script>
-        
   </body>
 </html>
