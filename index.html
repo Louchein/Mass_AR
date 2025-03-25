@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image.prod.js"></script>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
         #debug-info {
             position: fixed;
@@ -28,7 +28,7 @@
 
     <a-scene 
         mindar-image="imageTargetSrc: https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/targets_wBand_01.mind?v=1742912732026; 
-                     maxTrack: 1; 
+                     maxTrack: 3; 
                      filterMinCF: 0.001; 
                      filterBeta: 0.001"
         color-space="sRGB" 
