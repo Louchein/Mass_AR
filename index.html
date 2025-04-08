@@ -42,11 +42,11 @@
     <button id="play-button">► Tap to Play Video</button>
     
     <a-scene mindar-image="imageTargetSrc: https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/mainQR_Artboard%202%404x.png?v=1744063948188; 
-                           maxTrack: 1" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
+                           maxTrack: 3" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
       
       <!-- Asset Management -->
       <a-assets>
-        <!-- <a-asset-item id="bearModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"></a-asset-item> -->
+        <a-asset-item id="bearModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/band-example/bear/scene.gltf"></a-asset-item>
         <a-asset-item id="raccoonModel" src="https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/logoMass_Animated_21.glb?v=1744062695987"></a-asset-item>
         <video 
             id="target-video" 
@@ -66,8 +66,11 @@
       <a-entity mindar-image-target="targetIndex: 0">
         <a-gltf-model rotation="0 -90 -90 " position="0 -0.25 0" scale="0.3 0.3 0.3" src="#raccoonModel" animation-mixer>
       </a-entity>
-      
       <a-entity mindar-image-target="targetIndex: 1">
+        <a-gltf-model rotation="0 -90 -90 " position="0 -0.25 0" scale="0.3 0.3 0.3" src="#bearModel" animation-mixer>
+      </a-entity>
+      
+      <a-entity mindar-image-target="targetIndex: 2">
         <!-- Video Plane -->
         <a-video 
           id="video-plane"
@@ -88,6 +91,53 @@
             const debugInfo = document.querySelector('#debug-info');
             const videoPlane = document.querySelector('#video-plane');
             const playButton = document.querySelector('#play-button');
+
+            // Camera initialization debugging
+            debugInfo.innerHTML += '<br>Camera Status: Waiting for initialization...';
+
+            // Listen for specific AR.js/MindAR events
+            sceneEl.addEventListener('arReady', (event) => {
+                console.log('AR System Ready');
+                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Waiting for initialization...', 
+                                                                'Camera Status: AR Ready');
+            });
+
+            sceneEl.addEventListener('arError', (event) => {
+                console.error('AR Error:', event.detail);
+                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Waiting for initialization...', 
+                                                                'Camera Status: ERROR - ' + event.detail);
+            });
+
+            // Add specific MindAR system event listeners
+            const mindarSystem = sceneEl.systems["mindar-image-system"];
+
+            if (mindarSystem) {
+                // MindAR specific initialization status checking
+                debugInfo.innerHTML += '<br>MindAR Status: Detected';
+
+                // Force start the AR system after a short delay if it hasn't started
+                setTimeout(() => {
+                    if (!mindarSystem.started) {
+                        console.log("Trying to manually start MindAR system");
+                        try {
+                            mindarSystem.start(); // Try to manually trigger start
+                        } catch (e) {
+                            console.error("Manual MindAR start failed:", e);
+                            debugInfo.innerHTML += '<br>Manual Start: Failed';
+                        }
+                    }
+                }, 3000);
+            } else {
+                debugInfo.innerHTML += '<br>MindAR Status: NOT DETECTED - System failure';
+            }
+
+            // Listen for camera stream starting
+            const arToolkitSource = sceneEl.components?.["mindar-image"]?.source;
+            if (arToolkitSource) {
+                debugInfo.innerHTML += '<br>ARToolkit: Detected';
+            } else {
+                debugInfo.innerHTML += '<br>ARToolkit: NOT DETECTED';
+            }
 
             let lastPlaybackTime = 0;
             let isTargetCurrentlyDetected = false;
