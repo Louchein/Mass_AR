@@ -3,6 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
         #debug-info {
@@ -32,7 +33,7 @@
   
   <body>
     <!-- Debug Information Display -->
-    <div id="debug-info">
+    <div id="debug-info" style="visibility: hidden;">
       Target Status: Not Detected<br>
       Video Status: Not Playing
     </div>
@@ -47,8 +48,6 @@
       
       <!-- Asset Management -->
       <a-assets>
-        <img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" />
-        <a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
         <a-asset-item id="animatedLogoModel" src="https://cdn.glitch.global/229ca963-db9f-450b-a0a8-788c65ef0dca/logoMass_Animated_21.glb?v=1744062695987"></a-asset-item>
         <video 
             id="target-video" 
@@ -65,8 +64,8 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
       <!-- Entities -->
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-gltf-model rotation="0 -90 -90 " position="0 -0.25 0" scale="0.3 0.3 0.3" src="#animatedLogoModel" animation-mixer>
+      <a-entity mindar-image-target="targetIndex: 1">
+        <a-gltf-model rotation="0 -90 -90 " position="-0.5 0.25 0" scale="0.3 0.3 0.3" src="#animatedLogoModel" animation-mixer>
       </a-entity>
       
       <!--
@@ -76,13 +75,13 @@
       </a-entity>
       -->
         
-      <a-entity mindar-image-target="targetIndex: 1">
+      <a-entity mindar-image-target="targetIndex: 0">
         <!-- Video Plane -->
         <a-video 
           id="video-plane"
           src="#target-video" 
-          width="4" 
-          height="2" 
+          width="3" 
+          height="1.5" 
           position="0 0 -1" 
           rotation="0 0 0"
         ></a-video>
