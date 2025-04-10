@@ -54,8 +54,10 @@
             src="https://cdn.glitch.me/229ca963-db9f-450b-a0a8-788c65ef0dca/BTL%20y%20Tecnolog%C3%ADas_compressed_02.mp4?v=1743518010222" 
             preload="auto" 
             webkit-playsinline 
-            playsinline 
+            playsinline
+            autoplay
             muted 
+            controls
             crossorigin="anonymous"
         ></video>
       </a-assets>
@@ -82,7 +84,7 @@
           src="#target-video" 
           width="3" 
           height="1.5" 
-          position="0 0 -1" 
+          position="0 0 -0.1" 
           rotation="0 0 0"
         ></a-video>
       </a-entity>
@@ -97,7 +99,16 @@
             const debugInfo = document.querySelector('#debug-info');
             const videoPlane = document.querySelector('#video-plane');
             const playButton = document.querySelector('#play-button');
-
+            
+            // Add this block right here
+            // Special iOS handling
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                playButton.style.display = 'block';
+                videoEl.addEventListener('canplaythrough', () => {
+                    playButton.style.display = 'block';
+                });
+            }
+          
             // Camera initialization debugging
             debugInfo.innerHTML += '<br>Camera Status: Waiting for initialization...';
 
@@ -179,7 +190,13 @@
             // Event Listeners for Video and Target
             sceneEl.addEventListener('targetFound', (event) => {
                 console.log('Target Found Event');
-                
+              
+                // Force video display for iOS
+                if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                    videoEl.play();
+                    console.log("iOS target found - forcing play");
+                }
+              
                 if (!isVideoReady) {
                     console.warn('Video not initialized');
                     playButton.style.display = 'block';
