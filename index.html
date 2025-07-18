@@ -253,15 +253,31 @@
                 debugInfo.classList.remove('hidden');
                 instructions.classList.remove('hidden');
                 
-                updateDebugInfo('Starting...', 'Not Detected', 'Not Playing', 'Requesting...');
+                updateDebugInfo('Starting...', 'Not Detected', 'Not Playing', 'Requesting Camera...');
                 
-                // Show scene first
+                // Request camera permissions explicitly first
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        } 
+                    });
+                    
+                    updateDebugInfo('Camera OK', 'Not Detected', 'Not Playing', 'Permissions granted');
+                    
+                    // Stop the test stream
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                } catch (cameraError) {
+                    throw new Error('Camera access denied: ' + cameraError.message);
+                }
+                
+                // Show scene
                 sceneEl.style.display = 'block';
                 
-                // Wait a bit for scene to initialize
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Wait for scene to be ready
+                // Wait for scene to initialize
                 await new Promise(resolve => {
                     if (sceneEl.hasLoaded) {
                         resolve();
@@ -270,7 +286,7 @@
                     }
                 });
                 
-                updateDebugInfo('Scene Loaded', 'Not Detected', 'Not Playing', 'Initializing...');
+                updateDebugInfo('Camera OK', 'Not Detected', 'Not Playing', 'Scene loaded');
                 
                 // Get MindAR system
                 arSystem = sceneEl.systems['mindar-image-system'];
@@ -279,39 +295,50 @@
                     throw new Error('MindAR system not found');
                 }
                 
+                updateDebugInfo('Camera OK', 'Not Detected', 'Not Playing', 'Starting MindAR...');
+                
                 // Start AR system
                 await arSystem.start();
                 isARStarted = true;
                 
-                updateDebugInfo('AR Started', 'Not Detected', 'Not Playing', 'Active');
+                updateDebugInfo('Camera OK', 'Not Detected', 'Not Playing', 'MindAR started');
                 
-                // Apply full screen styles after AR is running
+                // Check if camera feed is visible
                 setTimeout(() => {
-                    // Force body and scene styles
-                    document.body.style.overflow = 'hidden';
-                    document.body.style.margin = '0';
-                    document.body.style.padding = '0';
-                    
-                    // Force canvas full screen
+                    const video = document.querySelector('a-scene video');
                     const canvas = document.querySelector('a-scene canvas');
+                    
+                    updateDebugInfo('Camera OK', 'Not Detected', 'Not Playing', 
+                        `Video: ${video ? 'Found' : 'Not found'}, Canvas: ${canvas ? 'Found' : 'Not found'}`);
+                    
+                    // Force visibility
                     if (canvas) {
+                        canvas.style.display = 'block';
+                        canvas.style.visibility = 'visible';
+                        canvas.style.opacity = '1';
                         canvas.style.width = '100vw';
                         canvas.style.height = '100vh';
                         canvas.style.position = 'fixed';
                         canvas.style.top = '0';
                         canvas.style.left = '0';
+                        canvas.style.zIndex = '1';
                         canvas.style.objectFit = 'cover';
                     }
                     
-                    // Force scene full screen
+                    // Force scene visibility
+                    sceneEl.style.display = 'block';
+                    sceneEl.style.visibility = 'visible';
+                    sceneEl.style.opacity = '1';
                     sceneEl.style.width = '100vw';
                     sceneEl.style.height = '100vh';
                     sceneEl.style.position = 'fixed';
                     sceneEl.style.top = '0';
                     sceneEl.style.left = '0';
+                    sceneEl.style.zIndex = '1';
                     
-                    console.log('Full screen styles applied');
-                }, 2000);
+                    updateDebugInfo('Camera OK', 'Not Detected', 'Not Playing', 'Styles applied - Feed should be visible');
+                    
+                }, 1000);
                 
                 // Setup video
                 setupVideo();
@@ -404,17 +431,74 @@
             }
         });
         
-        // Handle orientation changes
+        // Handle orientation changes and camera restart
         window.addEventListener('orientationchange', () => {
             setTimeout(() => {
                 if (isARStarted && arSystem) {
+                    console.log('Orientation changed, restarting AR...');
                     arSystem.stop();
                     setTimeout(() => {
-                        arSystem.start();
+                        arSystem.start().then(() => {
+                            console.log('AR restarted after orientation change');
+                            // Re-apply styles
+                            setTimeout(() => {
+                                const canvas = document.querySelector('a-scene canvas');
+                                if (canvas) {
+                                    canvas.style.display = 'block';
+                                    canvas.style.visibility = 'visible';
+                                    canvas.style.width = '100vw';
+                                    canvas.style.height = '100vh';
+                                    canvas.style.position = 'fixed';
+                                    canvas.style.top = '0';
+                                    canvas.style.left = '0';
+                                    canvas.style.zIndex = '1';
+                                    canvas.style.objectFit = 'cover';
+                                }
+                            }, 1000);
+                        });
                     }, 100);
                 }
             }, 500);
         });
+        
+        // Add manual refresh function for debugging
+        window.refreshAR = function() {
+            if (isARStarted && arSystem) {
+                console.log('Manual AR refresh...');
+                arSystem.stop();
+                setTimeout(() => {
+                    arSystem.start().then(() => {
+                        console.log('AR manually refreshed');
+                        setTimeout(() => {
+                            const canvas = document.querySelector('a-scene canvas');
+                            if (canvas) {
+                                canvas.style.display = 'block';
+                                canvas.style.visibility = 'visible';
+                                canvas.style.width = '100vw';
+                                canvas.style.height = '100vh';
+                                canvas.style.position = 'fixed';
+                                canvas.style.top = '0';
+                                canvas.style.left = '0';
+                                canvas.style.zIndex = '1';
+                                canvas.style.objectFit = 'cover';
+                            }
+                        }, 1000);
+                    });
+                }, 100);
+            }
+        };
+        
+        // Debug: Log all video elements
+        setInterval(() => {
+            const videos = document.querySelectorAll('video');
+            const canvases = document.querySelectorAll('canvas');
+            if (videos.length > 0 || canvases.length > 0) {
+                console.log(`Found ${videos.length} videos, ${canvases.length} canvases`);
+                videos.forEach((video, i) => {
+                    console.log(`Video ${i}: ${video.videoWidth}x${video.videoHeight}, playing: ${!video.paused}`);
+                });
+            }
+        }, 5000);
         
     </script>
 </body>
