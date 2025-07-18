@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AR App</title>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        #debug-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            z-index: 1000;
+            font-family: monospace;
+            font-size: 12px;
+            border-radius: 5px;
+            max-width: 300px;
+        }
+        
+        #play-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        #play-button:hover {
+            background-color: #45a049;
+        }
+        
+        #start-button {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
+            padding: 15px 30px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        #start-button:hover {
+            background-color: #1976D2;
+        }
+        
+        #instructions {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Start Button -->
+    <button id="start-button">🎯 Iniciar AR</button>
+    
+    <!-- Debug Information Display -->
+    <div id="debug-info" class="hidden">
+        AR Status: Initializing...<br>
+        Target Status: Not Detected<br>
+        Video Status: Not Playing<br>
+        Camera: Waiting...
+    </div>
+
+    <!-- Instructions -->
+    <div id="instructions" class="hidden">
+        📱 Apunta la cámara hacia el target AR
+    </div>
+
+    <!-- Manual Play Button -->
+    <button id="play-button">🎬 Reproducir Video</button>
+    
+    <a-scene 
+        mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 2; filterMinCF: 0.0001; filterBeta: 0.01;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false"
+        embedded
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
+        style="display: none;">
+        
+        <!-- Asset Management -->
+        <a-assets>
+            <a-asset-item id="animatedLogoModel" src="./assets/logo.glb"></a-asset-item>
+            <video 
+                id="target-video" 
+                src="./assets/video.mp4" 
+                preload="auto" 
+                webkit-playsinline 
+                playsinline
+                muted 
+                controls
+                crossorigin="anonymous"
+            ></video>
+        </a-assets>
+        
+        <!-- Camera -->
+        <a-camera position="0 0 0" look-controls="enabled: false" arjs-look-controls="smoothingFactor: 0.1"></a-camera>
+        
+        <!-- Target 0: Video -->
+        <a-entity mindar-image-target="targetIndex: 0">
+            <a-video 
+                id="video-plane"
+                src="#target-video" 
+                width="3" 
+                height="1.5" 
+                position="0 0 0" 
+                rotation="0 0 0"
+                opacity="0.95"
+            ></a-video>
+        </a-entity>
+        
+        <!-- Target 1: 3D Model -->
+        <a-entity mindar-image-target="targetIndex: 1">
+            <a-gltf-model 
+                rotation="0 -90 -90" 
+                position="-0.5 0.25 0" 
+                scale="0.3 0.3 0.3" 
+                src="#animatedLogoModel" 
+                animation-mixer
+            ></a-gltf-model>
+        </a-entity>
+    </a-scene>
+      
+    <script>
+        let arSystem = null;
+        let isARStarted = false;
+        let isVideoReady = false;
+        let lastPlaybackTime = 0;
+        let isTargetCurrentlyDetected = false;
+        
+        const sceneEl = document.querySelector('a-scene');
+        const videoEl = document.querySelector('#target-video');
+        const debugInfo = document.querySelector('#debug-info');
+        const videoPlane = document.querySelector('#video-plane');
+        const playButton = document.querySelector('#play-button');
+        const startButton = document.querySelector('#start-button');
+        const instructions = document.querySelector('#instructions');
+        
+        // Update debug information
+        function updateDebugInfo(arStatus, targetStatus, videoStatus, cameraStatus) {
+            debugInfo.innerHTML = `
+                AR Status: ${arStatus}<br>
+                Target Status: ${targetStatus}<br>
+                Video Status: ${videoStatus}<br>
+                Camera: ${cameraStatus}<br>
+                Video Time: ${videoEl.currentTime.toFixed(2)}s<br>
+                Last Playback: ${lastPlaybackTime.toFixed(2)}s
+            `;
+        }
+        
+        // Initialize AR system
+        async function initializeAR() {
+            try {
+                startButton.classList.add('hidden');
+                sceneEl.style.display = 'block';
+                debugInfo.classList.remove('hidden');
+                instructions.classList.remove('hidden');
+                
+                updateDebugInfo('Starting...', 'Not Detected', 'Not Playing', 'Requesting...');
+                
+                // Wait for scene to be ready
+                await new Promise(resolve => {
+                    if (sceneEl.hasLoaded) {
+                        resolve();
+                    } else {
+                        sceneEl.addEventListener('loaded', resolve);
+                    }
+                });
+                
+                updateDebugInfo('Scene Loaded', 'Not Detected', 'Not Playing', 'Initializing...');
+                
+                // Get MindAR system
+                arSystem = sceneEl.systems['mindar-image-system'];
+                
+                if (!arSystem) {
+                    throw new Error('MindAR system not found');
+                }
+                
+                // Start AR system
+                await arSystem.start();
+                isARStarted = true;
+                
+                updateDebugInfo('AR Started', 'Not Detected', 'Not Playing', 'Active');
+                
+                // Setup video
+                setupVideo();
+                
+            } catch (error) {
+                console.error('AR initialization error:', error);
+                updateDebugInfo('ERROR: ' + error.message, 'Not Detected', 'Not Playing', 'Failed');
+                
+                // Show restart button
+                startButton.textContent = '🔄 Reintentar';
+                startButton.classList.remove('hidden');
+            }
+        }
+        
+        // Setup video functionality
+        function setupVideo() {
+            // Prepare video for autoplay
+            videoEl.muted = true;
+            videoEl.load();
+            
+            videoEl.addEventListener('canplaythrough', () => {
+                console.log('Video ready to play');
+                isVideoReady = true;
+                updateDebugInfo('AR Started', 'Not Detected', 'Ready', 'Active');
+            });
+            
+            videoEl.addEventListener('error', (e) => {
+                console.error('Video error:', e);
+                updateDebugInfo('AR Started', 'Not Detected', 'Error', 'Active');
+            });
+            
+            // Track video time
+            videoEl.addEventListener('timeupdate', () => {
+                if (isTargetCurrentlyDetected) {
+                    lastPlaybackTime = videoEl.currentTime;
+                }
+                
+                updateDebugInfo(
+                    'AR Started',
+                    isTargetCurrentlyDetected ? 'Detected' : 'Not Detected',
+                    videoEl.paused ? 'Paused' : 'Playing',
+                    'Active'
+                );
+            });
+        }
+        
+        // Manual play function
+        function playVideo() {
+            if (!isVideoReady) return;
+            
+            videoEl.muted = false;
+            videoEl.currentTime = lastPlaybackTime;
+            videoEl.play().then(() => {
+                console.log('Video playing');
+                playButton.style.display = 'none';
+            }).catch(error => {
+                console.error('Play error:', error);
+                playButton.style.display = 'block';
+            });
+        }
+        
+        // Event listeners
+        startButton.addEventListener('click', initializeAR);
+        playButton.addEventListener('click', playVideo);
+        
+        // Target detection events
+        sceneEl.addEventListener('targetFound', (event) => {
+            console.log('Target found:', event.detail.targetIndex);
+            
+            if (event.detail.targetIndex === 0) { // Video target
+                isTargetCurrentlyDetected = true;
+                
+                if (isVideoReady) {
+                    videoEl.currentTime = lastPlaybackTime;
+                    videoEl.play().catch(error => {
+                        console.error('Auto-play failed:', error);
+                        playButton.style.display = 'block';
+                    });
+                }
+            }
+        });
+        
+        sceneEl.addEventListener('targetLost', (event) => {
+            console.log('Target lost:', event.detail.targetIndex);
+            
+            if (event.detail.targetIndex === 0) { // Video target
+                isTargetCurrentlyDetected = false;
+                lastPlaybackTime = videoEl.currentTime;
+                videoEl.pause();
+            }
+        });
+        
+        // Handle orientation changes
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                if (isARStarted && arSystem) {
+                    arSystem.stop();
+                    setTimeout(() => {
+                        arSystem.start();
+                    }, 100);
+                }
+            }, 500);
+        });
+        
+    </script>
+</body>
+</html>
