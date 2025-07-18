@@ -1,0 +1,264 @@
+
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        #debug-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            z-index: 1000;
+            font-family: monospace;
+        }
+        #play-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            display: none;
+        }
+    </style>
+  </head>
+  
+  <body>
+    <!-- Debug Information Display -->
+    <div id="debug-info" style="visibility: hidden;">
+      Target Status: Not Detected<br>
+      Video Status: Not Playing
+    </div>
+
+    <!-- Manual Play Button -->
+    <button id="play-button">► Tap to Play Video</button>
+    
+    
+    
+    <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; 
+                           maxTrack: 2" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
+      
+      <!-- Asset Management -->
+      <a-assets>
+        <a-asset-item id="animatedLogoModel" src="./assets/logo.glb"></a-asset-item>
+        <video 
+            id="target-video" 
+            src="./assets/video.mp4" 
+            preload="auto" 
+            webkit-playsinline 
+            playsinline
+            autoplay
+            muted 
+            controls
+            crossorigin="anonymous"
+        ></video>
+      </a-assets>
+      
+      <!-- Camera -->
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      
+      <!-- Entities -->
+      <a-entity mindar-image-target="targetIndex: 1">
+        <a-gltf-model rotation="0 -90 -90 " position="-0.5 0.25 0" scale="0.3 0.3 0.3" src="#animatedLogoModel" animation-mixer>
+      </a-entity>
+      
+      <!--
+      <a-entity mindar-image-target="targetIndex: 1">
+        <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
+        <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#animatedLogoModel" animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate">
+      </a-entity>
+      -->
+        
+      <a-entity mindar-image-target="targetIndex: 0">
+        <!-- Video Plane -->
+        <a-video 
+          id="video-plane"
+          src="#target-video" 
+          width="3" 
+          height="1.5" 
+          position="0 0 -0.1" 
+          rotation="0 0 0"
+        ></a-video>
+      </a-entity>
+        
+        
+    </a-scene>
+      
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sceneEl = document.querySelector('a-scene');
+            const videoEl = document.querySelector('#target-video');
+            const debugInfo = document.querySelector('#debug-info');
+            const videoPlane = document.querySelector('#video-plane');
+            const playButton = document.querySelector('#play-button');
+            
+            // Add this block right here
+            // Special iOS handling
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                playButton.style.display = 'block';
+                videoEl.addEventListener('canplaythrough', () => {
+                    playButton.style.display = 'block';
+                });
+            }
+          
+            // Camera initialization debugging
+            debugInfo.innerHTML += '<br>Camera Status: Waiting for initialization...';
+
+            // Listen for specific AR.js/MindAR events
+            sceneEl.addEventListener('arReady', (event) => {
+                console.log('AR System Ready');
+                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Waiting for initialization...', 
+                                                                'Camera Status: AR Ready');
+            });
+
+            sceneEl.addEventListener('arError', (event) => {
+                console.error('AR Error:', event.detail);
+                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Waiting for initialization...', 
+                                                                'Camera Status: ERROR - ' + event.detail);
+            });
+
+            // Add specific MindAR system event listeners
+            const mindarSystem = sceneEl.systems["mindar-image-system"];
+
+            if (mindarSystem) {
+                // MindAR specific initialization status checking
+                debugInfo.innerHTML += '<br>MindAR Status: Detected';
+
+                // Force start the AR system after a short delay if it hasn't started
+                setTimeout(() => {
+                    if (!mindarSystem.started) {
+                        console.log("Trying to manually start MindAR system");
+                        try {
+                            mindarSystem.start(); // Try to manually trigger start
+                        } catch (e) {
+                            console.error("Manual MindAR start failed:", e);
+                            debugInfo.innerHTML += '<br>Manual Start: Failed';
+                        }
+                    }
+                }, 3000);
+            } else {
+                debugInfo.innerHTML += '<br>MindAR Status: NOT DETECTED - System failure';
+            }
+
+            // Listen for camera stream starting
+            const arToolkitSource = sceneEl.components?.["mindar-image"]?.source;
+            if (arToolkitSource) {
+                debugInfo.innerHTML += '<br>ARToolkit: Detected';
+            } else {
+                debugInfo.innerHTML += '<br>ARToolkit: NOT DETECTED';
+            }
+
+            let lastPlaybackTime = 0;
+            let isTargetCurrentlyDetected = false;
+            let isVideoReady = false;
+
+            // Comprehensive logging and debugging
+            function updateDebugInfo(targetStatus, videoStatus) {
+                debugInfo.innerHTML = `
+                    Target Status: ${targetStatus}<br>
+                    Video Status: ${videoStatus}<br>
+                    Last Playback Time: ${lastPlaybackTime.toFixed(2)}s<br>
+                    Current Time: ${videoEl.currentTime.toFixed(2)}s<br>
+                    Video Ready: ${isVideoReady}
+                `;
+            }
+
+            // Manual play initialization
+            function initializeVideoPlayback() {
+                videoEl.muted = false;
+                videoEl.play().then(() => {
+                    console.log('Initial Video Play Successful');
+                    isVideoReady = true;
+                    playButton.style.display = 'none';
+                }).catch((error) => {
+                    console.error('Initial Video Play Error:', error);
+                    playButton.style.display = 'block';
+                });
+            }
+
+            // Manual play button
+            playButton.addEventListener('click', initializeVideoPlayback);
+
+            // Event Listeners for Video and Target
+            sceneEl.addEventListener('targetFound', (event) => {
+                console.log('Target Found Event');
+              
+                // Force video display for iOS
+                if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                    videoEl.play();
+                    console.log("iOS target found - forcing play");
+                }
+              
+                if (!isVideoReady) {
+                    console.warn('Video not initialized');
+                    playButton.style.display = 'block';
+                    return;
+                }
+
+                isTargetCurrentlyDetected = true;
+                updateDebugInfo('Detected', 'Attempting to Play');
+
+                // Play from last known timestamp
+                videoEl.currentTime = lastPlaybackTime;
+                videoEl.play().then(() => {
+                    console.log('Video Play Successful');
+                    updateDebugInfo('Detected', 'Playing');
+                }).catch((error) => {
+                    console.error('Video Play Error:', error);
+                    updateDebugInfo('Detected', 'Play Failed');
+                    playButton.style.display = 'block';
+                });
+            });
+
+            sceneEl.addEventListener('targetLost', (event) => {
+                console.log('Target Lost Event');
+                
+                // Store the current playback time before pausing
+                lastPlaybackTime = videoEl.currentTime;
+                videoEl.pause();
+                isTargetCurrentlyDetected = false;
+                updateDebugInfo('Not Detected', 'Paused');
+            });
+
+            // Track playback time continuously
+            videoEl.addEventListener('timeupdate', () => {
+                if (isTargetCurrentlyDetected) {
+                    lastPlaybackTime = videoEl.currentTime;
+                }
+                
+                updateDebugInfo(
+                    isTargetCurrentlyDetected ? 'Detected' : 'Not Detected', 
+                    videoEl.paused ? 'Paused' : 'Playing'
+                );
+            });
+
+            // Initial video preparation
+            videoEl.addEventListener('canplay', () => {
+                console.log('Video Can Play');
+                updateDebugInfo('Not Detected', 'Ready');
+            });
+
+            videoEl.addEventListener('error', (e) => {
+                console.error('Video Error:', e);
+                updateDebugInfo('Not Detected', 'Error Loading');
+                playButton.style.display = 'block';
+            });
+
+            // Additional debugging for video loading
+            videoEl.addEventListener('loadedmetadata', () => {
+                console.log('Video Metadata Loaded');
+                playButton.style.display = 'block';
+            });
+        });
+    </script>
+    
+  </body>
+</html>
