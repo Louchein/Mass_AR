@@ -113,10 +113,10 @@
       <a-assets>
         <a-asset-item id="animatedLogoModel" src="./assets/logo.glb"></a-asset-item>
         
-        <!-- Video A -->
+        <!-- Video A - Using the original video file -->
         <video 
             id="video-a" 
-            src="./assets/video-a.mp4" 
+            src="./assets/video.mp4" 
             preload="auto" 
             webkit-playsinline 
             playsinline
@@ -124,10 +124,10 @@
             crossorigin="anonymous"
         ></video>
         
-        <!-- Video B -->
+        <!-- Video B - Also using the same video for now -->
         <video 
             id="video-b" 
-            src="./assets/video-a.mp4" 
+            src="./assets/video.mp4" 
             preload="auto" 
             webkit-playsinline 
             playsinline
@@ -232,10 +232,32 @@
 
             // Initialize video system
             function initializeVideoSystem() {
-                Promise.all([
-                    videoA.play().then(() => videoA.pause()),
-                    videoB.play().then(() => videoB.pause())
-                ]).then(() => {
+                // First check if videos can load
+                const checkVideoA = new Promise((resolve, reject) => {
+                    if (videoA.readyState >= 3) { // HAVE_FUTURE_DATA
+                        resolve();
+                    } else {
+                        videoA.addEventListener('canplay', resolve, { once: true });
+                        videoA.addEventListener('error', reject, { once: true });
+                    }
+                });
+                
+                const checkVideoB = new Promise((resolve, reject) => {
+                    if (videoB.readyState >= 3) { // HAVE_FUTURE_DATA
+                        resolve();
+                    } else {
+                        videoB.addEventListener('canplay', resolve, { once: true });
+                        videoB.addEventListener('error', reject, { once: true });
+                    }
+                });
+                
+                Promise.all([checkVideoA, checkVideoB]).then(() => {
+                    // Try to play and pause both videos
+                    return Promise.all([
+                        videoA.play().then(() => videoA.pause()),
+                        videoB.play().then(() => videoB.pause())
+                    ]);
+                }).then(() => {
                     console.log('Video system initialized');
                     isVideoSystemReady = true;
                     initButton.style.display = 'none';
@@ -246,7 +268,20 @@
                 }).catch((error) => {
                     console.error('Video system initialization failed:', error);
                     initButton.style.display = 'block';
-                    status.textContent = 'Failed to initialize videos. Tap to retry.';
+                    status.textContent = 'Using same video for both buttons (video.mp4). Tap to continue.';
+                    
+                    // Try with just one video if both fail
+                    videoA.play().then(() => {
+                        videoA.pause();
+                        videoA.muted = false;
+                        videoB.src = videoA.src; // Use same source
+                        isVideoSystemReady = true;
+                        initButton.style.display = 'none';
+                        controls.style.display = 'flex';
+                        status.textContent = 'Ready! Both buttons will play the same video';
+                    }).catch(() => {
+                        status.textContent = 'Cannot load video.mp4. Check file exists in assets folder.';
+                    });
                 });
             }
 
@@ -410,12 +445,16 @@
 
             videoA.addEventListener('error', (e) => {
                 console.error('Video A Error:', e);
-                status.textContent = 'Error loading Video A';
+                console.error('Video A src:', videoA.src);
+                console.error('Video A error code:', videoA.error ? videoA.error.code : 'unknown');
+                status.textContent = 'Error: Cannot find video.mp4 in assets folder';
             });
 
             videoB.addEventListener('error', (e) => {
                 console.error('Video B Error:', e);
-                status.textContent = 'Error loading Video B';
+                console.error('Video B src:', videoB.src);
+                console.error('Video B error code:', videoB.error ? videoB.error.code : 'unknown');
+                status.textContent = 'Error: Cannot find video.mp4 in assets folder';
             });
 
             // Initialize display
