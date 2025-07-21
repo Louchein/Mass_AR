@@ -71,8 +71,18 @@
         ></video>
       </a-assets>
       
-      <!-- Camera -->
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <!-- Camera with cursor -->
+      <a-camera position="0 0 0" look-controls="enabled: false">
+        <a-cursor 
+          id="cursor"
+          animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+          animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
+          geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+          material="color: white; shader: flat"
+          position="0 0 -1"
+          raycaster="objects: .interactive-button"
+        ></a-cursor>
+      </a-camera>
       
       <!-- 3D Model Entity (Target Index 1) -->
       <a-entity mindar-image-target="targetIndex: 1">
@@ -90,6 +100,9 @@
           depth="0.1" 
           color="#FF6B6B"
           class="interactive-button"
+          cursor-listener
+          geometry="primitive: box"
+          material="color: #FF6B6B"
         >
           <a-text 
             value="VIDEO A" 
@@ -109,6 +122,9 @@
           depth="0.1" 
           color="#4ECDC4"
           class="interactive-button"
+          cursor-listener
+          geometry="primitive: box"
+          material="color: #4ECDC4"
         >
           <a-text 
             value="VIDEO B" 
@@ -143,6 +159,29 @@
     </a-scene>
       
     <script>
+        // Register cursor listener component
+        AFRAME.registerComponent('cursor-listener', {
+            init: function () {
+                this.el.addEventListener('mouseenter', function (evt) {
+                    console.log('Button hover enter');
+                    this.setAttribute('scale', '1.1 1.1 1.1');
+                });
+                this.el.addEventListener('mouseleave', function (evt) {
+                    console.log('Button hover leave');
+                    this.setAttribute('scale', '1 1 1');
+                });
+                this.el.addEventListener('click', function (evt) {
+                    console.log('Button clicked via cursor:', this.id);
+                    const buttonId = this.id;
+                    if (buttonId === 'button-a') {
+                        window.playVideoA();
+                    } else if (buttonId === 'button-b') {
+                        window.playVideoB();
+                    }
+                });
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             const sceneEl = document.querySelector('a-scene');
             const videoA = document.querySelector('#video-a');
@@ -255,15 +294,15 @@
                     currentVideoType = 'a';
                     videoDisplay.setAttribute('src', '#video-a');
                     videoStatus.setAttribute('value', 'Playing Video A');
-                    buttonA.setAttribute('color', '#FF4444');
-                    buttonB.setAttribute('color', '#4ECDC4');
+                    buttonA.setAttribute('material', 'color', '#FF4444');
+                    buttonB.setAttribute('material', 'color', '#4ECDC4');
                 } else {
                     currentVideo = videoB;
                     currentVideoType = 'b';
                     videoDisplay.setAttribute('src', '#video-b');
                     videoStatus.setAttribute('value', 'Playing Video B');
-                    buttonA.setAttribute('color', '#FF6B6B');
-                    buttonB.setAttribute('color', '#44C4C4');
+                    buttonA.setAttribute('material', 'color', '#FF6B6B');
+                    buttonB.setAttribute('material', 'color', '#44C4C4');
                 }
 
                 // Show video display
@@ -286,14 +325,31 @@
                 }
             }
 
-            // Button click handlers
-            buttonA.addEventListener('click', () => {
-                console.log('Button A clicked');
+            // Make functions globally available for cursor component
+            window.playVideoA = () => playVideo('a');
+            window.playVideoB = () => playVideo('b');
+
+            // Alternative touch/click handlers directly on elements
+            buttonA.addEventListener('click', (e) => {
+                console.log('Button A direct click');
                 playVideo('a');
             });
 
-            buttonB.addEventListener('click', () => {
-                console.log('Button B clicked');
+            buttonB.addEventListener('click', (e) => {
+                console.log('Button B direct click');
+                playVideo('b');
+            });
+
+            // Touch events for mobile
+            buttonA.addEventListener('touchstart', (e) => {
+                console.log('Button A touch');
+                e.preventDefault();
+                playVideo('a');
+            });
+
+            buttonB.addEventListener('touchstart', (e) => {
+                console.log('Button B touch');
+                e.preventDefault();
                 playVideo('b');
             });
 
