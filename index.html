@@ -1,0 +1,385 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        #debug-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            z-index: 1000;
+            font-family: monospace;
+        }
+        #play-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            display: none;
+        }
+    </style>
+  </head>
+  
+  <body>
+    <!-- Debug Information Display -->
+    <div id="debug-info" style="visibility: hidden;">
+      Target Status: Not Detected<br>
+      Video Status: Not Playing<br>
+      Current Video: None
+    </div>
+
+    <!-- Manual Play Button -->
+    <button id="play-button">► Tap to Initialize Videos</button>
+    
+    <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; 
+                           maxTrack: 2" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
+      
+      <!-- Asset Management -->
+      <a-assets>
+        <a-asset-item id="animatedLogoModel" src="./assets/logo.glb"></a-asset-item>
+        
+        <!-- Video A -->
+        <video 
+            id="video-a" 
+            src="./assets/video-a.mp4" 
+            preload="auto" 
+            webkit-playsinline 
+            playsinline
+            muted 
+            crossorigin="anonymous"
+        ></video>
+        
+        <!-- Video B -->
+        <video 
+            id="video-b" 
+            src="./assets/video-b.mp4" 
+            preload="auto" 
+            webkit-playsinline 
+            playsinline
+            muted 
+            crossorigin="anonymous"
+        ></video>
+      </a-assets>
+      
+      <!-- Camera -->
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      
+      <!-- 3D Model Entity (Target Index 1) -->
+      <a-entity mindar-image-target="targetIndex: 1">
+        <a-gltf-model rotation="0 -90 -90 " position="-0.5 0.25 0" scale="0.3 0.3 0.3" src="#animatedLogoModel" animation-mixer>
+      </a-entity>
+      
+      <!-- Buttons and Video Display (Target Index 0) -->
+      <a-entity mindar-image-target="targetIndex: 0">
+        <!-- Button A -->
+        <a-box 
+          id="button-a"
+          position="-0.8 0.5 0" 
+          width="0.6" 
+          height="0.3" 
+          depth="0.1" 
+          color="#FF6B6B"
+          class="interactive-button"
+        >
+          <a-text 
+            value="VIDEO A" 
+            position="0 0 0.06" 
+            align="center" 
+            color="white"
+            scale="0.8 0.8 0.8"
+          ></a-text>
+        </a-box>
+        
+        <!-- Button B -->
+        <a-box 
+          id="button-b"
+          position="0.8 0.5 0" 
+          width="0.6" 
+          height="0.3" 
+          depth="0.1" 
+          color="#4ECDC4"
+          class="interactive-button"
+        >
+          <a-text 
+            value="VIDEO B" 
+            position="0 0 0.06" 
+            align="center" 
+            color="white"
+            scale="0.8 0.8 0.8"
+          ></a-text>
+        </a-box>
+        
+        <!-- Video Display Area -->
+        <a-video 
+          id="video-display"
+          src="#video-a" 
+          width="2.5" 
+          height="1.4" 
+          position="0 -0.3 0" 
+          rotation="0 0 0"
+          visible="false"
+        ></a-video>
+        
+        <!-- Status Indicator -->
+        <a-text 
+          id="video-status"
+          value="Select a video to play" 
+          position="0 -1.2 0" 
+          align="center" 
+          color="white"
+          scale="0.6 0.6 0.6"
+        ></a-text>
+      </a-entity>
+    </a-scene>
+      
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sceneEl = document.querySelector('a-scene');
+            const videoA = document.querySelector('#video-a');
+            const videoB = document.querySelector('#video-b');
+            const videoDisplay = document.querySelector('#video-display');
+            const debugInfo = document.querySelector('#debug-info');
+            const playButton = document.querySelector('#play-button');
+            const buttonA = document.querySelector('#button-a');
+            const buttonB = document.querySelector('#button-b');
+            const videoStatus = document.querySelector('#video-status');
+            
+            let currentVideo = null;
+            let isTargetCurrentlyDetected = false;
+            let isVideoSystemReady = false;
+            let lastPlaybackTime = { a: 0, b: 0 };
+            let currentVideoType = null;
+            
+            // Special iOS handling
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                playButton.style.display = 'block';
+            }
+          
+            // Camera initialization debugging
+            debugInfo.innerHTML += '<br>Camera Status: Waiting for initialization...';
+
+            // Listen for specific AR.js/MindAR events
+            sceneEl.addEventListener('arReady', (event) => {
+                console.log('AR System Ready');
+                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Waiting for initialization...', 
+                                                                'Camera Status: AR Ready');
+            });
+
+            sceneEl.addEventListener('arError', (event) => {
+                console.error('AR Error:', event.detail);
+                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Waiting for initialization...', 
+                                                                'Camera Status: ERROR - ' + event.detail);
+            });
+
+            // Add specific MindAR system event listeners
+            const mindarSystem = sceneEl.systems["mindar-image-system"];
+
+            if (mindarSystem) {
+                debugInfo.innerHTML += '<br>MindAR Status: Detected';
+
+                setTimeout(() => {
+                    if (!mindarSystem.started) {
+                        console.log("Trying to manually start MindAR system");
+                        try {
+                            mindarSystem.start();
+                        } catch (e) {
+                            console.error("Manual MindAR start failed:", e);
+                            debugInfo.innerHTML += '<br>Manual Start: Failed';
+                        }
+                    }
+                }, 3000);
+            } else {
+                debugInfo.innerHTML += '<br>MindAR Status: NOT DETECTED - System failure';
+            }
+
+            // Update debug information
+            function updateDebugInfo(targetStatus, videoStatus, currentVideoName) {
+                debugInfo.innerHTML = `
+                    Target Status: ${targetStatus}<br>
+                    Video Status: ${videoStatus}<br>
+                    Current Video: ${currentVideoName}<br>
+                    Video A Time: ${lastPlaybackTime.a.toFixed(2)}s<br>
+                    Video B Time: ${lastPlaybackTime.b.toFixed(2)}s<br>
+                    System Ready: ${isVideoSystemReady}
+                `;
+            }
+
+            // Initialize video system
+            function initializeVideoSystem() {
+                Promise.all([
+                    videoA.play().then(() => videoA.pause()),
+                    videoB.play().then(() => videoB.pause())
+                ]).then(() => {
+                    console.log('Video system initialized');
+                    isVideoSystemReady = true;
+                    playButton.style.display = 'none';
+                    videoA.muted = false;
+                    videoB.muted = false;
+                }).catch((error) => {
+                    console.error('Video system initialization failed:', error);
+                    playButton.style.display = 'block';
+                });
+            }
+
+            // Play specific video
+            function playVideo(videoType) {
+                if (!isVideoSystemReady) {
+                    console.warn('Video system not ready');
+                    playButton.style.display = 'block';
+                    return;
+                }
+
+                // Stop current video if playing
+                if (currentVideo) {
+                    if (currentVideoType === 'a') {
+                        lastPlaybackTime.a = currentVideo.currentTime;
+                    } else {
+                        lastPlaybackTime.b = currentVideo.currentTime;
+                    }
+                    currentVideo.pause();
+                }
+
+                // Set new video
+                if (videoType === 'a') {
+                    currentVideo = videoA;
+                    currentVideoType = 'a';
+                    videoDisplay.setAttribute('src', '#video-a');
+                    videoStatus.setAttribute('value', 'Playing Video A');
+                    buttonA.setAttribute('color', '#FF4444');
+                    buttonB.setAttribute('color', '#4ECDC4');
+                } else {
+                    currentVideo = videoB;
+                    currentVideoType = 'b';
+                    videoDisplay.setAttribute('src', '#video-b');
+                    videoStatus.setAttribute('value', 'Playing Video B');
+                    buttonA.setAttribute('color', '#FF6B6B');
+                    buttonB.setAttribute('color', '#44C4C4');
+                }
+
+                // Show video display
+                videoDisplay.setAttribute('visible', 'true');
+
+                // Resume from last position
+                currentVideo.currentTime = lastPlaybackTime[videoType];
+                
+                // Play video if target is detected
+                if (isTargetCurrentlyDetected) {
+                    currentVideo.play().then(() => {
+                        console.log(`Video ${videoType.toUpperCase()} playing`);
+                        updateDebugInfo('Detected', 'Playing', `Video ${videoType.toUpperCase()}`);
+                    }).catch((error) => {
+                        console.error(`Video ${videoType.toUpperCase()} play error:`, error);
+                        updateDebugInfo('Detected', 'Play Failed', `Video ${videoType.toUpperCase()}`);
+                    });
+                } else {
+                    updateDebugInfo('Not Detected', 'Ready', `Video ${videoType.toUpperCase()}`);
+                }
+            }
+
+            // Button click handlers
+            buttonA.addEventListener('click', () => {
+                console.log('Button A clicked');
+                playVideo('a');
+            });
+
+            buttonB.addEventListener('click', () => {
+                console.log('Button B clicked');
+                playVideo('b');
+            });
+
+            // Manual initialization button
+            playButton.addEventListener('click', initializeVideoSystem);
+
+            // Target detection events
+            sceneEl.addEventListener('targetFound', (event) => {
+                console.log('Target Found Event');
+                isTargetCurrentlyDetected = true;
+
+                if (!isVideoSystemReady) {
+                    playButton.style.display = 'block';
+                    updateDebugInfo('Detected', 'System Not Ready', currentVideoType ? `Video ${currentVideoType.toUpperCase()}` : 'None');
+                    return;
+                }
+
+                // Play current video if one is selected
+                if (currentVideo) {
+                    currentVideo.play().then(() => {
+                        console.log('Video resumed on target found');
+                        updateDebugInfo('Detected', 'Playing', `Video ${currentVideoType.toUpperCase()}`);
+                    }).catch((error) => {
+                        console.error('Video resume error:', error);
+                        updateDebugInfo('Detected', 'Resume Failed', `Video ${currentVideoType.toUpperCase()}`);
+                    });
+                } else {
+                    updateDebugInfo('Detected', 'No Video Selected', 'None');
+                }
+            });
+
+            sceneEl.addEventListener('targetLost', (event) => {
+                console.log('Target Lost Event');
+                isTargetCurrentlyDetected = false;
+                
+                if (currentVideo) {
+                    if (currentVideoType === 'a') {
+                        lastPlaybackTime.a = currentVideo.currentTime;
+                    } else {
+                        lastPlaybackTime.b = currentVideo.currentTime;
+                    }
+                    currentVideo.pause();
+                    updateDebugInfo('Not Detected', 'Paused', `Video ${currentVideoType.toUpperCase()}`);
+                } else {
+                    updateDebugInfo('Not Detected', 'No Video', 'None');
+                }
+            });
+
+            // Track playback time for both videos
+            videoA.addEventListener('timeupdate', () => {
+                if (isTargetCurrentlyDetected && currentVideoType === 'a') {
+                    lastPlaybackTime.a = videoA.currentTime;
+                    updateDebugInfo('Detected', 'Playing', 'Video A');
+                }
+            });
+
+            videoB.addEventListener('timeupdate', () => {
+                if (isTargetCurrentlyDetected && currentVideoType === 'b') {
+                    lastPlaybackTime.b = videoB.currentTime;
+                    updateDebugInfo('Detected', 'Playing', 'Video B');
+                }
+            });
+
+            // Video loading events
+            videoA.addEventListener('canplay', () => {
+                console.log('Video A ready');
+            });
+
+            videoB.addEventListener('canplay', () => {
+                console.log('Video B ready');
+            });
+
+            videoA.addEventListener('error', (e) => {
+                console.error('Video A Error:', e);
+                playButton.style.display = 'block';
+            });
+
+            videoB.addEventListener('error', (e) => {
+                console.error('Video B Error:', e);
+                playButton.style.display = 'block';
+            });
+
+            // Initialize display
+            updateDebugInfo('Not Detected', 'Initializing', 'None');
+        });
+    </script>
+    
+  </body>
+</html>
