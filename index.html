@@ -84,6 +84,10 @@
             display: none;
             cursor: pointer;
         }
+
+        #ios-init-button:active {
+            background-color: #45a049;
+        }
     </style>
   </head>
   
@@ -178,8 +182,12 @@
             let isVideoSystemReady = false;
             let lastPlaybackTime = { a: 0, b: 0 };
             let currentVideoType = null;
-            let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             let needsUserInteraction = isIOS;
+            let videosUnlocked = false;
+            
+            console.log('iOS detected:', isIOS);
+            console.log('Needs user interaction:', needsUserInteraction);
             
             // Auto-initialize video system on load
             if (isIOS) {
@@ -198,7 +206,9 @@
                 console.log('AR System Ready');
                 debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Initializing automatically...', 
                                                                 'Camera Status: AR Ready');
-                status.textContent = 'AR ready! Point camera at target to show controls';
+                if (!isIOS || videosUnlocked) {
+                    status.textContent = 'AR ready! Point camera at target to show controls';
+                }
             });
 
             sceneEl.addEventListener('arError', (event) => {
@@ -217,6 +227,8 @@
                     Video A Time: ${lastPlaybackTime.a.toFixed(2)}s<br>
                     Video B Time: ${lastPlaybackTime.b.toFixed(2)}s<br>
                     System Ready: ${isVideoSystemReady}<br>
+                    Videos Unlocked: ${videosUnlocked}<br>
+                    iOS: ${isIOS}<br>
                     Controls Visible: ${controls.style.display === 'flex' ? 'Yes' : 'No'}
                 `;
             }
@@ -230,7 +242,13 @@
                     if (videoA.readyState >= 3) { // HAVE_FUTURE_DATA
                         resolve();
                     } else {
-                        videoA.addEventListener('canplay', resolve, { once: true });
+                        const onLoad = () => {
+                            videoA.removeEventListener('canplay', onLoad);
+                            videoA.removeEventListener('loadeddata', onLoad);
+                            resolve();
+                        };
+                        videoA.addEventListener('canplay', onLoad, { once: true });
+                        videoA.addEventListener('loadeddata', onLoad, { once: true });
                         videoA.addEventListener('error', reject, { once: true });
                     }
                 });
@@ -239,61 +257,71 @@
                     if (videoB.readyState >= 3) { // HAVE_FUTURE_DATA
                         resolve();
                     } else {
-                        videoB.addEventListener('canplay', resolve, { once: true });
+                        const onLoad = () => {
+                            videoB.removeEventListener('canplay', onLoad);
+                            videoB.removeEventListener('loadeddata', onLoad);
+                            resolve();
+                        };
+                        videoB.addEventListener('canplay', onLoad, { once: true });
+                        videoB.addEventListener('loadeddata', onLoad, { once: true });
                         videoB.addEventListener('error', reject, { once: true });
                     }
                 });
                 
                 Promise.all([checkVideoA, checkVideoB]).then(() => {
+                    console.log('Videos loaded successfully');
                     // Try to play and pause both videos to prepare them (skip on iOS until user interaction)
                     if (!needsUserInteraction) {
                         return Promise.all([
-                            videoA.play().then(() => videoA.pause()),
-                            videoB.play().then(() => videoB.pause())
+                            videoA.play().then(() => {
+                                videoA.pause();
+                                console.log('Video A unlocked');
+                            }),
+                            videoB.play().then(() => {
+                                videoB.pause();
+                                console.log('Video B unlocked');
+                            })
                         ]);
                     } else {
                         // On iOS, just mark as ready but don't try to play yet
+                        console.log('iOS detected - waiting for user interaction');
                         return Promise.resolve();
                     }
                 }).then(() => {
                     console.log('Video system auto-initialized successfully');
                     isVideoSystemReady = true;
-                    videoA.muted = false;
-                    videoB.muted = false;
                     
-                    if (needsUserInteraction) {
-                        status.textContent = 'Tap the button above to enable videos on iOS';
-                    } else {
+                    if (!needsUserInteraction) {
+                        videoA.muted = false;
+                        videoB.muted = false;
+                        videosUnlocked = true;
                         status.textContent = 'Videos ready! Point camera at target to show controls';
+                    } else {
+                        status.textContent = 'Tap the button above to enable videos on iOS';
                     }
+                    
                     updateDebugInfo('Not Detected', 'Ready', 'None');
                 }).catch((error) => {
                     console.error('Video system auto-initialization failed:', error);
                     
                     if (needsUserInteraction) {
                         status.textContent = 'Tap the button above to enable videos on iOS';
+                        isVideoSystemReady = true; // Still mark as ready for iOS
                     } else {
                         status.textContent = 'Using same video for both buttons (video.mp4)';
-                    }
-                    
-                    // Try with just one video if both fail
-                    if (!needsUserInteraction) {
+                        // Try with just one video if both fail
                         videoA.play().then(() => {
                             videoA.pause();
                             videoA.muted = false;
                             videoB.src = videoA.src; // Use same source
                             isVideoSystemReady = true;
+                            videosUnlocked = true;
                             status.textContent = 'Ready! Point camera at target to show controls';
                             updateDebugInfo('Not Detected', 'Ready', 'None');
                         }).catch(() => {
                             status.textContent = 'Cannot load video.mp4. Check file exists in assets folder.';
                             isVideoSystemReady = false;
                         });
-                    } else {
-                        // On iOS, still mark as ready but require user interaction
-                        isVideoSystemReady = true;
-                        videoA.muted = false;
-                        videoB.src = videoA.src;
                     }
                 });
             }
@@ -302,6 +330,7 @@
             function showIOSInitButton() {
                 iosInitButton.style.display = 'block';
                 status.textContent = 'iOS detected - tap button above to enable videos';
+                updateDebugInfo('Not Detected', 'iOS Init Required', 'None');
             }
 
             // Hide iOS initialization button
@@ -312,32 +341,81 @@
             // Handle iOS video initialization
             function initializeIOSVideos() {
                 console.log('Initializing iOS videos with user interaction');
+                status.textContent = 'Unlocking videos...';
+                
+                // Ensure videos are muted initially for iOS
+                videoA.muted = true;
+                videoB.muted = true;
                 
                 // Try to play and pause both videos to unlock them
-                Promise.all([
-                    videoA.play().then(() => videoA.pause()).catch(() => console.log('Video A unlock failed')),
-                    videoB.play().then(() => videoB.pause()).catch(() => console.log('Video B unlock failed'))
-                ]).then(() => {
+                const unlockVideoA = videoA.play().then(() => {
+                    console.log('Video A played successfully');
+                    return videoA.pause();
+                }).then(() => {
+                    console.log('Video A paused successfully');
+                    videoA.muted = false; // Unmute after successful unlock
+                }).catch((error) => {
+                    console.error('Video A unlock failed:', error);
+                    throw error;
+                });
+
+                const unlockVideoB = videoB.play().then(() => {
+                    console.log('Video B played successfully');
+                    return videoB.pause();
+                }).then(() => {
+                    console.log('Video B paused successfully');
+                    videoB.muted = false; // Unmute after successful unlock
+                }).catch((error) => {
+                    console.error('Video B unlock failed:', error);
+                    // For Video B, we can fallback to using the same source as Video A
+                    videoB.src = videoA.src;
+                    return videoB.load();
+                });
+                
+                Promise.all([unlockVideoA, unlockVideoB]).then(() => {
                     console.log('iOS videos unlocked successfully');
                     needsUserInteraction = false;
+                    videosUnlocked = true;
                     hideIOSInitButton();
                     status.textContent = 'Videos ready! Point camera at target to show controls';
                     updateDebugInfo('Not Detected', 'Ready (iOS Unlocked)', 'None');
                 }).catch((error) => {
                     console.error('iOS video unlock failed:', error);
-                    // Try with just one video
+                    
+                    // Try with just one video as fallback
                     videoA.play().then(() => {
-                        videoA.pause();
+                        return videoA.pause();
+                    }).then(() => {
+                        console.log('Fallback: Using single video for both buttons');
+                        videoA.muted = false;
                         videoB.src = videoA.src;
+                        videoB.muted = false;
                         needsUserInteraction = false;
+                        videosUnlocked = true;
                         hideIOSInitButton();
                         status.textContent = 'Videos ready! Point camera at target to show controls';
-                        updateDebugInfo('Not Detected', 'Ready (iOS Unlocked)', 'None');
+                        updateDebugInfo('Not Detected', 'Ready (iOS Unlocked - Fallback)', 'None');
                     }).catch(() => {
+                        console.error('Complete iOS video unlock failure');
                         status.textContent = 'Failed to unlock videos on iOS. Please refresh and try again.';
+                        updateDebugInfo('Not Detected', 'iOS Unlock Failed', 'None');
                     });
                 });
             }
+
+            // iOS initialization button click handler - THIS WAS MISSING!
+            iosInitButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('iOS init button clicked');
+                initializeIOSVideos();
+            });
+
+            // Also add touch handler for better mobile support
+            iosInitButton.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                console.log('iOS init button touched');
+                initializeIOSVideos();
+            });
 
             // Show controls when target is found
             function showControls() {
@@ -356,13 +434,15 @@
 
             // Play specific video
             function playVideo(videoType) {
+                console.log(`Attempting to play video ${videoType}`);
+                
                 if (!isVideoSystemReady) {
                     console.warn('Video system not ready');
                     status.textContent = 'Video system not ready';
                     return;
                 }
 
-                if (needsUserInteraction) {
+                if (needsUserInteraction || !videosUnlocked) {
                     console.warn('iOS needs user interaction first');
                     status.textContent = 'Please tap the initialization button first (iOS)';
                     showIOSInitButton();
@@ -452,6 +532,13 @@
                 if (!isVideoSystemReady) {
                     status.textContent = 'Video system not ready yet';
                     updateDebugInfo('Detected', 'System Not Ready', 'None');
+                    return;
+                }
+
+                if (needsUserInteraction || !videosUnlocked) {
+                    status.textContent = 'Please tap the initialization button first (iOS)';
+                    showIOSInitButton();
+                    updateDebugInfo('Detected', 'iOS Init Required', 'None');
                     return;
                 }
 
