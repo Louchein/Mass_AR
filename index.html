@@ -14,32 +14,97 @@
             padding: 10px;
             z-index: 1000;
             font-family: monospace;
+            font-size: 12px;
         }
-        #play-button {
+        
+        #controls {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
-            padding: 10px 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .video-button {
+            padding: 15px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+        }
+        
+        #button-a {
+            background-color: #FF6B6B;
+        }
+        
+        #button-b {
+            background-color: #4ECDC4;
+        }
+        
+        .video-button:active {
+            transform: scale(0.95);
+        }
+        
+        .video-button.selected {
+            box-shadow: 0 0 15px rgba(255,255,255,0.5);
+            transform: scale(1.05);
+        }
+        
+        #init-button {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
+            padding: 20px 30px;
             background-color: #4CAF50;
             color: white;
             border: none;
+            border-radius: 10px;
+            font-size: 18px;
             display: none;
+        }
+        
+        #status {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
         }
     </style>
   </head>
   
   <body>
     <!-- Debug Information Display -->
-    <div id="debug-info" style="visibility: hidden;">
+    <div id="debug-info">
       Target Status: Not Detected<br>
       Video Status: Not Playing<br>
       Current Video: None
     </div>
 
-    <!-- Manual Play Button -->
-    <button id="play-button">► Tap to Initialize Videos</button>
+    <!-- Status Display -->
+    <div id="status">Select a video when target is detected</div>
+
+    <!-- Control Buttons -->
+    <div id="controls">
+        <button id="button-a" class="video-button">VIDEO A</button>
+        <button id="button-b" class="video-button">VIDEO B</button>
+    </div>
+
+    <!-- Manual Initialization Button -->
+    <button id="init-button">► Tap to Initialize AR</button>
     
     <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; 
                            maxTrack: 2" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
@@ -71,127 +136,40 @@
         ></video>
       </a-assets>
       
-      <!-- Camera with cursor -->
-      <a-camera position="0 0 0" look-controls="enabled: false">
-        <a-cursor 
-          id="cursor"
-          animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-          animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
-          geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-          material="color: white; shader: flat"
-          position="0 0 -1"
-          raycaster="objects: .interactive-button"
-        ></a-cursor>
-      </a-camera>
+      <!-- Camera -->
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
       <!-- 3D Model Entity (Target Index 1) -->
       <a-entity mindar-image-target="targetIndex: 1">
         <a-gltf-model rotation="0 -90 -90 " position="-0.5 0.25 0" scale="0.3 0.3 0.3" src="#animatedLogoModel" animation-mixer>
       </a-entity>
       
-      <!-- Buttons and Video Display (Target Index 0) -->
+      <!-- Video Display (Target Index 0) -->
       <a-entity mindar-image-target="targetIndex: 0">
-        <!-- Button A -->
-        <a-box 
-          id="button-a"
-          position="-0.8 0.5 0" 
-          width="0.6" 
-          height="0.3" 
-          depth="0.1" 
-          color="#FF6B6B"
-          class="interactive-button"
-          cursor-listener
-          geometry="primitive: box"
-          material="color: #FF6B6B"
-        >
-          <a-text 
-            value="VIDEO A" 
-            position="0 0 0.06" 
-            align="center" 
-            color="white"
-            scale="0.8 0.8 0.8"
-          ></a-text>
-        </a-box>
-        
-        <!-- Button B -->
-        <a-box 
-          id="button-b"
-          position="0.8 0.5 0" 
-          width="0.6" 
-          height="0.3" 
-          depth="0.1" 
-          color="#4ECDC4"
-          class="interactive-button"
-          cursor-listener
-          geometry="primitive: box"
-          material="color: #4ECDC4"
-        >
-          <a-text 
-            value="VIDEO B" 
-            position="0 0 0.06" 
-            align="center" 
-            color="white"
-            scale="0.8 0.8 0.8"
-          ></a-text>
-        </a-box>
-        
-        <!-- Video Display Area -->
         <a-video 
           id="video-display"
           src="#video-a" 
-          width="2.5" 
-          height="1.4" 
-          position="0 -0.3 0" 
+          width="3" 
+          height="1.5" 
+          position="0 0 0" 
           rotation="0 0 0"
           visible="false"
         ></a-video>
-        
-        <!-- Status Indicator -->
-        <a-text 
-          id="video-status"
-          value="Select a video to play" 
-          position="0 -1.2 0" 
-          align="center" 
-          color="white"
-          scale="0.6 0.6 0.6"
-        ></a-text>
       </a-entity>
     </a-scene>
       
     <script>
-        // Register cursor listener component
-        AFRAME.registerComponent('cursor-listener', {
-            init: function () {
-                this.el.addEventListener('mouseenter', function (evt) {
-                    console.log('Button hover enter');
-                    this.setAttribute('scale', '1.1 1.1 1.1');
-                });
-                this.el.addEventListener('mouseleave', function (evt) {
-                    console.log('Button hover leave');
-                    this.setAttribute('scale', '1 1 1');
-                });
-                this.el.addEventListener('click', function (evt) {
-                    console.log('Button clicked via cursor:', this.id);
-                    const buttonId = this.id;
-                    if (buttonId === 'button-a') {
-                        window.playVideoA();
-                    } else if (buttonId === 'button-b') {
-                        window.playVideoB();
-                    }
-                });
-            }
-        });
-
         document.addEventListener('DOMContentLoaded', () => {
             const sceneEl = document.querySelector('a-scene');
             const videoA = document.querySelector('#video-a');
             const videoB = document.querySelector('#video-b');
             const videoDisplay = document.querySelector('#video-display');
             const debugInfo = document.querySelector('#debug-info');
-            const playButton = document.querySelector('#play-button');
+            const initButton = document.querySelector('#init-button');
             const buttonA = document.querySelector('#button-a');
             const buttonB = document.querySelector('#button-b');
-            const videoStatus = document.querySelector('#video-status');
+            const status = document.querySelector('#status');
+            const controls = document.querySelector('#controls');
             
             let currentVideo = null;
             let isTargetCurrentlyDetected = false;
@@ -199,10 +177,9 @@
             let lastPlaybackTime = { a: 0, b: 0 };
             let currentVideoType = null;
             
-            // Special iOS handling
-            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                playButton.style.display = 'block';
-            }
+            // Show init button initially
+            initButton.style.display = 'block';
+            controls.style.display = 'none';
           
             // Camera initialization debugging
             debugInfo.innerHTML += '<br>Camera Status: Waiting for initialization...';
@@ -261,12 +238,15 @@
                 ]).then(() => {
                     console.log('Video system initialized');
                     isVideoSystemReady = true;
-                    playButton.style.display = 'none';
+                    initButton.style.display = 'none';
+                    controls.style.display = 'flex';
                     videoA.muted = false;
                     videoB.muted = false;
+                    status.textContent = 'Videos ready! Point camera at target and select video';
                 }).catch((error) => {
                     console.error('Video system initialization failed:', error);
-                    playButton.style.display = 'block';
+                    initButton.style.display = 'block';
+                    status.textContent = 'Failed to initialize videos. Tap to retry.';
                 });
             }
 
@@ -274,7 +254,7 @@
             function playVideo(videoType) {
                 if (!isVideoSystemReady) {
                     console.warn('Video system not ready');
-                    playButton.style.display = 'block';
+                    status.textContent = 'Please initialize videos first';
                     return;
                 }
 
@@ -293,16 +273,16 @@
                     currentVideo = videoA;
                     currentVideoType = 'a';
                     videoDisplay.setAttribute('src', '#video-a');
-                    videoStatus.setAttribute('value', 'Playing Video A');
-                    buttonA.setAttribute('material', 'color', '#FF4444');
-                    buttonB.setAttribute('material', 'color', '#4ECDC4');
+                    status.textContent = 'Video A Selected';
+                    buttonA.classList.add('selected');
+                    buttonB.classList.remove('selected');
                 } else {
                     currentVideo = videoB;
                     currentVideoType = 'b';
                     videoDisplay.setAttribute('src', '#video-b');
-                    videoStatus.setAttribute('value', 'Playing Video B');
-                    buttonA.setAttribute('material', 'color', '#FF6B6B');
-                    buttonB.setAttribute('material', 'color', '#44C4C4');
+                    status.textContent = 'Video B Selected';
+                    buttonA.classList.remove('selected');
+                    buttonB.classList.add('selected');
                 }
 
                 // Show video display
@@ -315,46 +295,47 @@
                 if (isTargetCurrentlyDetected) {
                     currentVideo.play().then(() => {
                         console.log(`Video ${videoType.toUpperCase()} playing`);
+                        status.textContent = `Playing Video ${videoType.toUpperCase()}`;
                         updateDebugInfo('Detected', 'Playing', `Video ${videoType.toUpperCase()}`);
                     }).catch((error) => {
                         console.error(`Video ${videoType.toUpperCase()} play error:`, error);
+                        status.textContent = `Failed to play Video ${videoType.toUpperCase()}`;
                         updateDebugInfo('Detected', 'Play Failed', `Video ${videoType.toUpperCase()}`);
                     });
                 } else {
+                    status.textContent = `Video ${videoType.toUpperCase()} ready - point at target to play`;
                     updateDebugInfo('Not Detected', 'Ready', `Video ${videoType.toUpperCase()}`);
                 }
             }
 
-            // Make functions globally available for cursor component
-            window.playVideoA = () => playVideo('a');
-            window.playVideoB = () => playVideo('b');
-
-            // Alternative touch/click handlers directly on elements
+            // Button click handlers
             buttonA.addEventListener('click', (e) => {
-                console.log('Button A direct click');
+                e.preventDefault();
+                console.log('Button A clicked');
                 playVideo('a');
             });
 
             buttonB.addEventListener('click', (e) => {
-                console.log('Button B direct click');
+                e.preventDefault();
+                console.log('Button B clicked');
                 playVideo('b');
             });
 
-            // Touch events for mobile
-            buttonA.addEventListener('touchstart', (e) => {
-                console.log('Button A touch');
+            // Touch handlers for better mobile support
+            buttonA.addEventListener('touchend', (e) => {
                 e.preventDefault();
+                console.log('Button A touched');
                 playVideo('a');
             });
 
-            buttonB.addEventListener('touchstart', (e) => {
-                console.log('Button B touch');
+            buttonB.addEventListener('touchend', (e) => {
                 e.preventDefault();
+                console.log('Button B touched');
                 playVideo('b');
             });
 
             // Manual initialization button
-            playButton.addEventListener('click', initializeVideoSystem);
+            initButton.addEventListener('click', initializeVideoSystem);
 
             // Target detection events
             sceneEl.addEventListener('targetFound', (event) => {
@@ -362,7 +343,7 @@
                 isTargetCurrentlyDetected = true;
 
                 if (!isVideoSystemReady) {
-                    playButton.style.display = 'block';
+                    status.textContent = 'Please initialize videos first';
                     updateDebugInfo('Detected', 'System Not Ready', currentVideoType ? `Video ${currentVideoType.toUpperCase()}` : 'None');
                     return;
                 }
@@ -371,12 +352,15 @@
                 if (currentVideo) {
                     currentVideo.play().then(() => {
                         console.log('Video resumed on target found');
+                        status.textContent = `Playing Video ${currentVideoType.toUpperCase()}`;
                         updateDebugInfo('Detected', 'Playing', `Video ${currentVideoType.toUpperCase()}`);
                     }).catch((error) => {
                         console.error('Video resume error:', error);
+                        status.textContent = `Failed to play Video ${currentVideoType.toUpperCase()}`;
                         updateDebugInfo('Detected', 'Resume Failed', `Video ${currentVideoType.toUpperCase()}`);
                     });
                 } else {
+                    status.textContent = 'Target detected! Select a video to play';
                     updateDebugInfo('Detected', 'No Video Selected', 'None');
                 }
             });
@@ -392,8 +376,10 @@
                         lastPlaybackTime.b = currentVideo.currentTime;
                     }
                     currentVideo.pause();
+                    status.textContent = `Video ${currentVideoType.toUpperCase()} paused - target lost`;
                     updateDebugInfo('Not Detected', 'Paused', `Video ${currentVideoType.toUpperCase()}`);
                 } else {
+                    status.textContent = 'Target lost';
                     updateDebugInfo('Not Detected', 'No Video', 'None');
                 }
             });
@@ -424,12 +410,12 @@
 
             videoA.addEventListener('error', (e) => {
                 console.error('Video A Error:', e);
-                playButton.style.display = 'block';
+                status.textContent = 'Error loading Video A';
             });
 
             videoB.addEventListener('error', (e) => {
                 console.error('Video B Error:', e);
-                playButton.style.display = 'block';
+                status.textContent = 'Error loading Video B';
             });
 
             // Initialize display
