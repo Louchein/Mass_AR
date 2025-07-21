@@ -23,7 +23,7 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
-            display: flex;
+            display: none; /* Hidden by default */
             gap: 20px;
         }
         
@@ -56,21 +56,6 @@
             transform: scale(1.05);
         }
         
-        #init-button {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1001;
-            padding: 20px 30px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            display: none;
-        }
-        
         #status {
             position: fixed;
             bottom: 100px;
@@ -95,19 +80,17 @@
     </div>
 
     <!-- Status Display -->
-    <div id="status">Select a video when target is detected</div>
+    <div id="status">Point camera at target to show video controls</div>
 
-    <!-- Control Buttons -->
+    <!-- Control Buttons (hidden initially) -->
     <div id="controls">
         <button id="button-a" class="video-button">VIDEO A</button>
         <button id="button-b" class="video-button">VIDEO B</button>
     </div>
-
-    <!-- Manual Initialization Button -->
-    <button id="init-button">► Tap to Initialize AR</button>
     
     <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; 
-                           maxTrack: 2" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
+                           maxTrack: 2; 
+                           autoStart: true" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
       
       <!-- Asset Management -->
       <a-assets>
@@ -165,7 +148,6 @@
             const videoB = document.querySelector('#video-b');
             const videoDisplay = document.querySelector('#video-display');
             const debugInfo = document.querySelector('#debug-info');
-            const initButton = document.querySelector('#init-button');
             const buttonA = document.querySelector('#button-a');
             const buttonB = document.querySelector('#button-b');
             const status = document.querySelector('#status');
@@ -177,46 +159,26 @@
             let lastPlaybackTime = { a: 0, b: 0 };
             let currentVideoType = null;
             
-            // Show init button initially
-            initButton.style.display = 'block';
-            controls.style.display = 'none';
+            // Auto-initialize video system on load
+            initializeVideoSystem();
           
             // Camera initialization debugging
-            debugInfo.innerHTML += '<br>Camera Status: Waiting for initialization...';
+            debugInfo.innerHTML += '<br>Camera Status: Initializing automatically...';
 
             // Listen for specific AR.js/MindAR events
             sceneEl.addEventListener('arReady', (event) => {
                 console.log('AR System Ready');
-                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Waiting for initialization...', 
+                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Initializing automatically...', 
                                                                 'Camera Status: AR Ready');
+                status.textContent = 'AR ready! Point camera at target to show controls';
             });
 
             sceneEl.addEventListener('arError', (event) => {
                 console.error('AR Error:', event.detail);
-                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Waiting for initialization...', 
+                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Initializing automatically...', 
                                                                 'Camera Status: ERROR - ' + event.detail);
+                status.textContent = 'AR initialization failed. Please refresh.';
             });
-
-            // Add specific MindAR system event listeners
-            const mindarSystem = sceneEl.systems["mindar-image-system"];
-
-            if (mindarSystem) {
-                debugInfo.innerHTML += '<br>MindAR Status: Detected';
-
-                setTimeout(() => {
-                    if (!mindarSystem.started) {
-                        console.log("Trying to manually start MindAR system");
-                        try {
-                            mindarSystem.start();
-                        } catch (e) {
-                            console.error("Manual MindAR start failed:", e);
-                            debugInfo.innerHTML += '<br>Manual Start: Failed';
-                        }
-                    }
-                }, 3000);
-            } else {
-                debugInfo.innerHTML += '<br>MindAR Status: NOT DETECTED - System failure';
-            }
 
             // Update debug information
             function updateDebugInfo(targetStatus, videoStatus, currentVideoName) {
@@ -226,12 +188,15 @@
                     Current Video: ${currentVideoName}<br>
                     Video A Time: ${lastPlaybackTime.a.toFixed(2)}s<br>
                     Video B Time: ${lastPlaybackTime.b.toFixed(2)}s<br>
-                    System Ready: ${isVideoSystemReady}
+                    System Ready: ${isVideoSystemReady}<br>
+                    Controls Visible: ${controls.style.display === 'flex' ? 'Yes' : 'No'}
                 `;
             }
 
-            // Initialize video system
+            // Initialize video system automatically
             function initializeVideoSystem() {
+                console.log('Auto-initializing video system...');
+                
                 // First check if videos can load
                 const checkVideoA = new Promise((resolve, reject) => {
                     if (videoA.readyState >= 3) { // HAVE_FUTURE_DATA
@@ -252,23 +217,21 @@
                 });
                 
                 Promise.all([checkVideoA, checkVideoB]).then(() => {
-                    // Try to play and pause both videos
+                    // Try to play and pause both videos to prepare them
                     return Promise.all([
                         videoA.play().then(() => videoA.pause()),
                         videoB.play().then(() => videoB.pause())
                     ]);
                 }).then(() => {
-                    console.log('Video system initialized');
+                    console.log('Video system auto-initialized successfully');
                     isVideoSystemReady = true;
-                    initButton.style.display = 'none';
-                    controls.style.display = 'flex';
                     videoA.muted = false;
                     videoB.muted = false;
-                    status.textContent = 'Videos ready! Point camera at target and select video';
+                    status.textContent = 'Videos ready! Point camera at target to show controls';
+                    updateDebugInfo('Not Detected', 'Ready', 'None');
                 }).catch((error) => {
-                    console.error('Video system initialization failed:', error);
-                    initButton.style.display = 'block';
-                    status.textContent = 'Using same video for both buttons (video.mp4). Tap to continue.';
+                    console.error('Video system auto-initialization failed:', error);
+                    status.textContent = 'Using same video for both buttons (video.mp4)';
                     
                     // Try with just one video if both fail
                     videoA.play().then(() => {
@@ -276,20 +239,41 @@
                         videoA.muted = false;
                         videoB.src = videoA.src; // Use same source
                         isVideoSystemReady = true;
-                        initButton.style.display = 'none';
-                        controls.style.display = 'flex';
-                        status.textContent = 'Ready! Both buttons will play the same video';
+                        status.textContent = 'Ready! Point camera at target to show controls';
+                        updateDebugInfo('Not Detected', 'Ready', 'None');
                     }).catch(() => {
                         status.textContent = 'Cannot load video.mp4. Check file exists in assets folder.';
+                        isVideoSystemReady = false;
                     });
                 });
+            }
+
+            // Show controls when target is found
+            function showControls() {
+                controls.style.display = 'flex';
+                status.textContent = 'Select a video to play';
+            }
+
+            // Hide controls when target is lost
+            function hideControls() {
+                controls.style.display = 'none';
+                // Clear button selections
+                buttonA.classList.remove('selected');
+                buttonB.classList.remove('selected');
+                status.textContent = 'Point camera at target to show video controls';
             }
 
             // Play specific video
             function playVideo(videoType) {
                 if (!isVideoSystemReady) {
                     console.warn('Video system not ready');
-                    status.textContent = 'Please initialize videos first';
+                    status.textContent = 'Video system not ready';
+                    return;
+                }
+
+                if (!isTargetCurrentlyDetected) {
+                    console.warn('Target not detected');
+                    status.textContent = 'Point camera at target first';
                     return;
                 }
 
@@ -308,14 +292,12 @@
                     currentVideo = videoA;
                     currentVideoType = 'a';
                     videoDisplay.setAttribute('src', '#video-a');
-                    status.textContent = 'Video A Selected';
                     buttonA.classList.add('selected');
                     buttonB.classList.remove('selected');
                 } else {
                     currentVideo = videoB;
                     currentVideoType = 'b';
                     videoDisplay.setAttribute('src', '#video-b');
-                    status.textContent = 'Video B Selected';
                     buttonA.classList.remove('selected');
                     buttonB.classList.add('selected');
                 }
@@ -326,21 +308,16 @@
                 // Resume from last position
                 currentVideo.currentTime = lastPlaybackTime[videoType];
                 
-                // Play video if target is detected
-                if (isTargetCurrentlyDetected) {
-                    currentVideo.play().then(() => {
-                        console.log(`Video ${videoType.toUpperCase()} playing`);
-                        status.textContent = `Playing Video ${videoType.toUpperCase()}`;
-                        updateDebugInfo('Detected', 'Playing', `Video ${videoType.toUpperCase()}`);
-                    }).catch((error) => {
-                        console.error(`Video ${videoType.toUpperCase()} play error:`, error);
-                        status.textContent = `Failed to play Video ${videoType.toUpperCase()}`;
-                        updateDebugInfo('Detected', 'Play Failed', `Video ${videoType.toUpperCase()}`);
-                    });
-                } else {
-                    status.textContent = `Video ${videoType.toUpperCase()} ready - point at target to play`;
-                    updateDebugInfo('Not Detected', 'Ready', `Video ${videoType.toUpperCase()}`);
-                }
+                // Play video
+                currentVideo.play().then(() => {
+                    console.log(`Video ${videoType.toUpperCase()} playing`);
+                    status.textContent = `Playing Video ${videoType.toUpperCase()}`;
+                    updateDebugInfo('Detected', 'Playing', `Video ${videoType.toUpperCase()}`);
+                }).catch((error) => {
+                    console.error(`Video ${videoType.toUpperCase()} play error:`, error);
+                    status.textContent = `Failed to play Video ${videoType.toUpperCase()}`;
+                    updateDebugInfo('Detected', 'Play Failed', `Video ${videoType.toUpperCase()}`);
+                });
             }
 
             // Button click handlers
@@ -369,21 +346,21 @@
                 playVideo('b');
             });
 
-            // Manual initialization button
-            initButton.addEventListener('click', initializeVideoSystem);
-
             // Target detection events
             sceneEl.addEventListener('targetFound', (event) => {
                 console.log('Target Found Event');
                 isTargetCurrentlyDetected = true;
 
                 if (!isVideoSystemReady) {
-                    status.textContent = 'Please initialize videos first';
-                    updateDebugInfo('Detected', 'System Not Ready', currentVideoType ? `Video ${currentVideoType.toUpperCase()}` : 'None');
+                    status.textContent = 'Video system not ready yet';
+                    updateDebugInfo('Detected', 'System Not Ready', 'None');
                     return;
                 }
 
-                // Play current video if one is selected
+                // Show controls when target is found
+                showControls();
+
+                // Play current video if one is already selected
                 if (currentVideo) {
                     currentVideo.play().then(() => {
                         console.log('Video resumed on target found');
@@ -395,14 +372,16 @@
                         updateDebugInfo('Detected', 'Resume Failed', `Video ${currentVideoType.toUpperCase()}`);
                     });
                 } else {
-                    status.textContent = 'Target detected! Select a video to play';
-                    updateDebugInfo('Detected', 'No Video Selected', 'None');
+                    updateDebugInfo('Detected', 'Controls Shown', 'None');
                 }
             });
 
             sceneEl.addEventListener('targetLost', (event) => {
                 console.log('Target Lost Event');
                 isTargetCurrentlyDetected = false;
+                
+                // Hide controls when target is lost
+                hideControls();
                 
                 if (currentVideo) {
                     if (currentVideoType === 'a') {
@@ -411,11 +390,9 @@
                         lastPlaybackTime.b = currentVideo.currentTime;
                     }
                     currentVideo.pause();
-                    status.textContent = `Video ${currentVideoType.toUpperCase()} paused - target lost`;
                     updateDebugInfo('Not Detected', 'Paused', `Video ${currentVideoType.toUpperCase()}`);
                 } else {
-                    status.textContent = 'Target lost';
-                    updateDebugInfo('Not Detected', 'No Video', 'None');
+                    updateDebugInfo('Not Detected', 'Controls Hidden', 'None');
                 }
             });
 
@@ -458,7 +435,7 @@
             });
 
             // Initialize display
-            updateDebugInfo('Not Detected', 'Initializing', 'None');
+            updateDebugInfo('Not Detected', 'Auto-Initializing', 'None');
         });
     </script>
     
