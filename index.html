@@ -147,7 +147,7 @@
       
       <!-- 3D Model Entity (Target Index 1) -->
       <a-entity mindar-image-target="targetIndex: 1">
-        <a-gltf-model rotation="90 -90 -90 " position="0 0 0" scale="7.0 7.0 7.0" src="#animatedLogoModel" animation-mixer>
+        <a-gltf-model rotation="0 -90 -90 " position="-0.5 0.25 0" scale="0.3 0.3 0.3" src="#animatedLogoModel" animation-mixer>
       </a-entity>
       
       <!-- Video Display (Target Index 0) -->
@@ -171,44 +171,6 @@
             const urlParams = new URLSearchParams(window.location.search);
             const showDebug = urlParams.get('debug') === 'true';
             
-            // Get debug elements
-            const debugInfo = document.querySelector('#debug-info');
-            const status = document.querySelector('#status');
-            
-            // Hide debug elements if production mode
-            if (!showDebug) {
-                debugInfo.style.display = 'none';
-                status.style.display = 'none';
-                console.log('Production mode: Debug messages hidden');
-            } else {
-                console.log('Debug mode: Status messages visible');
-            }
-            
-            // Modified updateDebugInfo function to respect debug mode
-            function updateDebugInfo(targetStatus, videoStatus, currentVideoName) {
-                if (!showDebug) return; // Skip if debug is disabled
-                
-                debugInfo.innerHTML = `
-                    Target Status: ${targetStatus}<br>
-                    Video Status: ${videoStatus}<br>
-                    Current Video: ${currentVideoName}<br>
-                    Video A Time: ${lastPlaybackTime.a.toFixed(2)}s<br>
-                    Video B Time: ${lastPlaybackTime.b.toFixed(2)}s<br>
-                    System Ready: ${isVideoSystemReady}<br>
-                    Videos Unlocked: ${videosUnlocked}<br>
-                    iOS: ${isIOS}<br>
-                    Controls Visible: ${controls.style.display === 'flex' ? 'Yes' : 'No'}
-                `;
-            }
-            
-            // Modified status update function
-            function updateStatus(message) {
-                if (showDebug) {
-                    status.textContent = message;
-                }
-                console.log('Status:', message); // Always log to console
-            }
-          
             const sceneEl = document.querySelector('a-scene');
             const videoA = document.querySelector('#video-a');
             const videoB = document.querySelector('#video-b');
@@ -219,6 +181,15 @@
             const status = document.querySelector('#status');
             const controls = document.querySelector('#controls');
             const iosInitButton = document.querySelector('#ios-init-button');
+            
+            // Hide debug elements if production mode
+            if (!showDebug) {
+                debugInfo.style.display = 'none';
+                status.style.display = 'none';
+                console.log('Production mode: Debug messages hidden');
+            } else {
+                console.log('Debug mode: Status messages visible');
+            }
             
             let currentVideo = null;
             let isTargetCurrentlyDetected = false;
@@ -242,29 +213,43 @@
             }
           
             // Camera initialization debugging
-            debugInfo.innerHTML += '<br>Camera Status: Initializing automatically...';
+            if (showDebug) {
+                debugInfo.innerHTML += '<br>Camera Status: Initializing automatically...';
+            }
 
             // Listen for specific AR.js/MindAR events
             sceneEl.addEventListener('arReady', (event) => {
                 console.log('AR System Ready');
-                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Initializing automatically...', 
-                                                                'Camera Status: AR Ready');
+                if (showDebug) {
+                    debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Initializing automatically...', 
+                                                                    'Camera Status: AR Ready');
+                }
                 if (!isIOS || videosUnlocked) {
-                  // status.textContent = 'AR ready! Point camera at target to show controls';
-                  updateStatus('¡RA lista! Apunta la cámara al QR para mostrar los controles');
+                    updateStatus('AR ready! Point camera at target to show controls');
                 }
             });
 
             sceneEl.addEventListener('arError', (event) => {
                 console.error('AR Error:', event.detail);
-                debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Initializing automatically...', 
-                                                                'Camera Status: ERROR - ' + event.detail);
-                // status.textContent = 'AR initialization failed. Please refresh.';
-                updateStatus('Inicialización AR fallida. Por favor reinténtalo.');
+                if (showDebug) {
+                    debugInfo.innerHTML = debugInfo.innerHTML.replace('Camera Status: Initializing automatically...', 
+                                                                    'Camera Status: ERROR - ' + event.detail);
+                }
+                updateStatus('AR initialization failed. Please refresh.');
             });
 
-            // Update debug information
+            // Modified status update function
+            function updateStatus(message) {
+                if (showDebug) {
+                    status.textContent = message;
+                }
+                console.log('Status:', message); // Always log to console
+            }
+
+            // Modified updateDebugInfo function to respect debug mode
             function updateDebugInfo(targetStatus, videoStatus, currentVideoName) {
+                if (!showDebug) return; // Skip if debug is disabled
+                
                 debugInfo.innerHTML = `
                     Target Status: ${targetStatus}<br>
                     Video Status: ${videoStatus}<br>
@@ -340,11 +325,9 @@
                         videoA.muted = false;
                         videoB.muted = false;
                         videosUnlocked = true;
-                        // status.textContent = 'Videos ready! Point camera at target to show controls';
-                        updateStatus('¡Videos listos! Apunta la cámara al QR para mostrar los controles');
+                        updateStatus('Videos ready! Point camera at target to show controls');
                     } else {
-                        // status.textContent = 'Tap the button above to enable videos on iOS';
-                        updateStatus('Oprime el botón para permitir los videos en iOS');
+                        updateStatus('Tap the button above to enable videos on iOS');
                     }
                     
                     updateDebugInfo('Not Detected', 'Ready', 'None');
@@ -352,12 +335,10 @@
                     console.error('Video system auto-initialization failed:', error);
                     
                     if (needsUserInteraction) {
-                        // status.textContent = 'Tap the button above to enable videos on iOS';
-                        updateStatus('Oprime el botón para permitir los videos en iOS');
+                        updateStatus('Tap the button above to enable videos on iOS');
                         isVideoSystemReady = true; // Still mark as ready for iOS
                     } else {
-                        // status.textContent = 'Using same video for both buttons (video.mp4)';
-                        updateStatus('Using same video for both buttons DEBUG');
+                        updateStatus('Using same video for both buttons (video.mp4)');
                         // Try with just one video if both fail
                         videoA.play().then(() => {
                             videoA.pause();
@@ -365,12 +346,10 @@
                             videoB.src = videoA.src; // Use same source
                             isVideoSystemReady = true;
                             videosUnlocked = true;
-                            // status.textContent = 'Ready! Point camera at target to show controls';
-                            updateStatus('¡Todo listo! Apuntra la cámara al QR o la ilustración');
+                            updateStatus('Ready! Point camera at target to show controls');
                             updateDebugInfo('Not Detected', 'Ready', 'None');
                         }).catch(() => {
-                            // status.textContent = 'Cannot load video.mp4. Check file exists in assets folder.';
-                            updateStatus('No pudimos cargar el video. Revisa si el archivo existe en otra carpeta.');
+                            updateStatus('Cannot load video.mp4. Check file exists in assets folder.');
                             isVideoSystemReady = false;
                         });
                     }
@@ -380,8 +359,7 @@
             // Show iOS initialization button
             function showIOSInitButton() {
                 iosInitButton.style.display = 'block';
-                // status.textContent = 'iOS detected - tap button above to enable videos';
-                updateStatus('iOS detectado - oprime el botón para permitir reproducir videos');
+                updateStatus('iOS detected - tap button above to enable videos');
                 updateDebugInfo('Not Detected', 'iOS Init Required', 'None');
             }
 
@@ -393,8 +371,7 @@
             // Handle iOS video initialization
             function initializeIOSVideos() {
                 console.log('Initializing iOS videos with user interaction');
-                // status.textContent = 'Unlocking videos...';
-                updateStatus('Cargando videos...');
+                updateStatus('Unlocking videos...');
                 
                 // Ensure videos are muted initially for iOS
                 videoA.muted = true;
@@ -430,8 +407,7 @@
                     needsUserInteraction = false;
                     videosUnlocked = true;
                     hideIOSInitButton();
-                    // status.textContent = 'Videos ready! Point camera at target to show controls';
-                    updateStatus('¡Videos listos! Apunta la cámara al QR o a la ilustración');
+                    updateStatus('Videos ready! Point camera at target to show controls');
                     updateDebugInfo('Not Detected', 'Ready (iOS Unlocked)', 'None');
                 }).catch((error) => {
                     console.error('iOS video unlock failed:', error);
@@ -447,19 +423,17 @@
                         needsUserInteraction = false;
                         videosUnlocked = true;
                         hideIOSInitButton();
-                        // status.textContent = 'Videos ready! Point camera at target to show controls';
-                        updateStatus('¡Videos listos! Apunta la cámra al QR o a la ilustración');
+                        updateStatus('Videos ready! Point camera at target to show controls');
                         updateDebugInfo('Not Detected', 'Ready (iOS Unlocked - Fallback)', 'None');
                     }).catch(() => {
                         console.error('Complete iOS video unlock failure');
-                        // status.textContent = 'Failed to unlock videos on iOS. Please refresh and try again.';
-                        updateStatus('Error al cargar videos para iOS. Por favor refresca e intenta nuevamente.');
+                        updateStatus('Failed to unlock videos on iOS. Please refresh and try again.');
                         updateDebugInfo('Not Detected', 'iOS Unlock Failed', 'None');
                     });
                 });
             }
 
-            // iOS initialization button click handler - THIS WAS MISSING!
+            // iOS initialization button click handler
             iosInitButton.addEventListener('click', (e) => {
                 e.preventDefault();
                 console.log('iOS init button clicked');
@@ -476,8 +450,7 @@
             // Show controls when target is found
             function showControls() {
                 controls.style.display = 'flex';
-                // status.textContent = 'Select a video to play';
-                updateStatus('Selecciona un video para reproducir');
+                updateStatus('Select a video to play');
             }
 
             // Hide controls when target is lost
@@ -486,8 +459,7 @@
                 // Clear button selections
                 buttonA.classList.remove('selected');
                 buttonB.classList.remove('selected');
-                // status.textContent = 'Point camera at target to show video controls';
-                updateStatus('Apunta la cámara al QR para mostrar los controles');
+                updateStatus('Point camera at target to show video controls');
             }
 
             // Play specific video
@@ -496,23 +468,20 @@
                 
                 if (!isVideoSystemReady) {
                     console.warn('Video system not ready');
-                    // status.textContent = 'Video system not ready';
-                    updateStatus('El sistema de video aún no está listo');
+                    updateStatus('Video system not ready');
                     return;
                 }
 
                 if (needsUserInteraction || !videosUnlocked) {
                     console.warn('iOS needs user interaction first');
-                    // status.textContent = 'Please tap the initialization button first (iOS)';
-                    updateStatus('Por favor oprime primero el botón de inicialización (iOS)');
+                    updateStatus('Please tap the initialization button first (iOS)');
                     showIOSInitButton();
                     return;
                 }
 
                 if (!isTargetCurrentlyDetected) {
                     console.warn('Target not detected');
-                    // status.textContent = 'Point camera at target first';
-                    updateStatus('Apunta la cámara al QR');
+                    updateStatus('Point camera at target first');
                     return;
                 }
 
@@ -550,14 +519,12 @@
                 // Play video
                 currentVideo.play().then(() => {
                     console.log(`Video ${videoType.toUpperCase()} playing`);
-                    // status.textContent = `Playing Video ${videoType.toUpperCase()}`;
                     updateStatus(`Playing Video ${videoType.toUpperCase()}`);
-                    updateDebugInfo('Detected', 'Playing', `Video ${videoType.toUpperCase()}`);
+                    updateDebugInfo('Target 0 Detected', 'Playing', `Video ${videoType.toUpperCase()}`);
                 }).catch((error) => {
                     console.error(`Video ${videoType.toUpperCase()} play error:`, error);
-                    // status.textContent = `Failed to play Video ${videoType.toUpperCase()}`;
                     updateStatus(`Failed to play Video ${videoType.toUpperCase()}`);
-                    updateDebugInfo('Detected', 'Play Failed', `Video ${videoType.toUpperCase()}`);
+                    updateDebugInfo('Target 0 Detected', 'Play Failed', `Video ${videoType.toUpperCase()}`);
                 });
             }
 
@@ -595,35 +562,31 @@
                 // Only show controls for target 0 (video target)
                 if (targetIndex === 0) {
                     isTargetCurrentlyDetected = true;
-            
+
                     if (!isVideoSystemReady) {
-                        // status.textContent = 'Video system not ready';
-                        updateStatus('El sistema de video aún no está listo');
+                        updateStatus('Video system not ready yet');
                         updateDebugInfo('Target 0 Detected', 'System Not Ready', 'None');
                         return;
                     }
-            
+
                     if (needsUserInteraction || !videosUnlocked) {
-                        // status.textContent = 'Please tap the initialization button first (iOS)';
-                        updateStatus('Por favor oprime primero el botón de inicialización (iOS)');
+                        updateStatus('Please tap the initialization button first (iOS)');
                         showIOSInitButton();
                         updateDebugInfo('Target 0 Detected', 'iOS Init Required', 'None');
                         return;
                     }
-            
+
                     // Show controls when video target is found
                     showControls();
-            
+
                     // Play current video if one is already selected
                     if (currentVideo) {
                         currentVideo.play().then(() => {
                             console.log('Video resumed on target 0 found');
-                            //status.textContent = `Playing Video ${currentVideoType.toUpperCase()}`;
                             updateStatus(`Playing Video ${currentVideoType.toUpperCase()}`);
                             updateDebugInfo('Target 0 Detected', 'Playing', `Video ${currentVideoType.toUpperCase()}`);
                         }).catch((error) => {
                             console.error('Video resume error:', error);
-                            //status.textContent = `Failed to play Video ${currentVideoType.toUpperCase()}`;
                             updateStatus(`Failed to play Video ${currentVideoType.toUpperCase()}`);
                             updateDebugInfo('Target 0 Detected', 'Resume Failed', `Video ${currentVideoType.toUpperCase()}`);
                         });
@@ -637,7 +600,7 @@
                     updateDebugInfo('Target 1 Detected', '3D Model Shown', 'None');
                 }
             });
-            
+
             sceneEl.addEventListener('targetLost', (event) => {
                 const targetIndex = event.target.getAttribute('mindar-image-target').targetIndex;
                 console.log(`Target ${targetIndex} Lost`);
@@ -672,14 +635,14 @@
             videoA.addEventListener('timeupdate', () => {
                 if (isTargetCurrentlyDetected && currentVideoType === 'a') {
                     lastPlaybackTime.a = videoA.currentTime;
-                    updateDebugInfo('Detected', 'Playing', 'Video A');
+                    updateDebugInfo('Target 0 Detected', 'Playing', 'Video A');
                 }
             });
 
             videoB.addEventListener('timeupdate', () => {
                 if (isTargetCurrentlyDetected && currentVideoType === 'b') {
                     lastPlaybackTime.b = videoB.currentTime;
-                    updateDebugInfo('Detected', 'Playing', 'Video B');
+                    updateDebugInfo('Target 0 Detected', 'Playing', 'Video B');
                 }
             });
 
@@ -696,16 +659,14 @@
                 console.error('Video A Error:', e);
                 console.error('Video A src:', videoA.src);
                 console.error('Video A error code:', videoA.error ? videoA.error.code : 'unknown');
-                // status.textContent = 'Error: Cannot find video.mp4 in assets folder';
-                updateStatus('Error: No se encontró el video en la carpeta indicada');
+                updateStatus('Error: Cannot find video.mp4 in assets folder');
             });
 
             videoB.addEventListener('error', (e) => {
                 console.error('Video B Error:', e);
                 console.error('Video B src:', videoB.src);
                 console.error('Video B error code:', videoB.error ? videoB.error.code : 'unknown');
-                // status.textContent = 'Error: Cannot find video.mp4 in assets folder';
-                updateStatus('Error: No se encontró el video en la carpeta indicada');
+                updateStatus('Error: Cannot find video.mp4 in assets folder');
             });
 
             // Initialize display
