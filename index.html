@@ -524,60 +524,80 @@
                 playVideo('b');
             });
 
-            // Target detection events
+            // Target detection events - UPDATED to be target-specific
             sceneEl.addEventListener('targetFound', (event) => {
-                console.log('Target Found Event');
-                isTargetCurrentlyDetected = true;
-
-                if (!isVideoSystemReady) {
-                    status.textContent = 'Video system not ready yet';
-                    updateDebugInfo('Detected', 'System Not Ready', 'None');
-                    return;
+                const targetIndex = event.target.getAttribute('mindar-image-target').targetIndex;
+                console.log(`Target ${targetIndex} Found`);
+                
+                // Only show controls for target 0 (video target)
+                if (targetIndex === 0) {
+                    isTargetCurrentlyDetected = true;
+            
+                    if (!isVideoSystemReady) {
+                        status.textContent = 'Video system not ready yet';
+                        updateDebugInfo('Target 0 Detected', 'System Not Ready', 'None');
+                        return;
+                    }
+            
+                    if (needsUserInteraction || !videosUnlocked) {
+                        status.textContent = 'Please tap the initialization button first (iOS)';
+                        showIOSInitButton();
+                        updateDebugInfo('Target 0 Detected', 'iOS Init Required', 'None');
+                        return;
+                    }
+            
+                    // Show controls when video target is found
+                    showControls();
+            
+                    // Play current video if one is already selected
+                    if (currentVideo) {
+                        currentVideo.play().then(() => {
+                            console.log('Video resumed on target 0 found');
+                            status.textContent = `Playing Video ${currentVideoType.toUpperCase()}`;
+                            updateDebugInfo('Target 0 Detected', 'Playing', `Video ${currentVideoType.toUpperCase()}`);
+                        }).catch((error) => {
+                            console.error('Video resume error:', error);
+                            status.textContent = `Failed to play Video ${currentVideoType.toUpperCase()}`;
+                            updateDebugInfo('Target 0 Detected', 'Resume Failed', `Video ${currentVideoType.toUpperCase()}`);
+                        });
+                    } else {
+                        updateDebugInfo('Target 0 Detected', 'Controls Shown', 'None');
+                    }
                 }
-
-                if (needsUserInteraction || !videosUnlocked) {
-                    status.textContent = 'Please tap the initialization button first (iOS)';
-                    showIOSInitButton();
-                    updateDebugInfo('Detected', 'iOS Init Required', 'None');
-                    return;
-                }
-
-                // Show controls when target is found
-                showControls();
-
-                // Play current video if one is already selected
-                if (currentVideo) {
-                    currentVideo.play().then(() => {
-                        console.log('Video resumed on target found');
-                        status.textContent = `Playing Video ${currentVideoType.toUpperCase()}`;
-                        updateDebugInfo('Detected', 'Playing', `Video ${currentVideoType.toUpperCase()}`);
-                    }).catch((error) => {
-                        console.error('Video resume error:', error);
-                        status.textContent = `Failed to play Video ${currentVideoType.toUpperCase()}`;
-                        updateDebugInfo('Detected', 'Resume Failed', `Video ${currentVideoType.toUpperCase()}`);
-                    });
-                } else {
-                    updateDebugInfo('Detected', 'Controls Shown', 'None');
+                // Target 1 (3D model) - don't show video controls
+                else if (targetIndex === 1) {
+                    console.log('Target 1 (3D model) detected - no video controls');
+                    updateDebugInfo('Target 1 Detected', '3D Model Shown', 'None');
                 }
             });
-
+            
             sceneEl.addEventListener('targetLost', (event) => {
-                console.log('Target Lost Event');
-                isTargetCurrentlyDetected = false;
+                const targetIndex = event.target.getAttribute('mindar-image-target').targetIndex;
+                console.log(`Target ${targetIndex} Lost`);
                 
-                // Hide controls when target is lost
-                hideControls();
-                
-                if (currentVideo) {
-                    if (currentVideoType === 'a') {
-                        lastPlaybackTime.a = currentVideo.currentTime;
+                // Only hide controls when losing target 0 (video target)
+                if (targetIndex === 0) {
+                    isTargetCurrentlyDetected = false;
+                    
+                    // Hide controls when video target is lost
+                    hideControls();
+                    
+                    if (currentVideo) {
+                        if (currentVideoType === 'a') {
+                            lastPlaybackTime.a = currentVideo.currentTime;
+                        } else {
+                            lastPlaybackTime.b = currentVideo.currentTime;
+                        }
+                        currentVideo.pause();
+                        updateDebugInfo('Target 0 Lost', 'Paused', `Video ${currentVideoType.toUpperCase()}`);
                     } else {
-                        lastPlaybackTime.b = currentVideo.currentTime;
+                        updateDebugInfo('Target 0 Lost', 'Controls Hidden', 'None');
                     }
-                    currentVideo.pause();
-                    updateDebugInfo('Not Detected', 'Paused', `Video ${currentVideoType.toUpperCase()}`);
-                } else {
-                    updateDebugInfo('Not Detected', 'Controls Hidden', 'None');
+                }
+                // Target 1 (3D model) lost
+                else if (targetIndex === 1) {
+                    console.log('Target 1 (3D model) lost');
+                    updateDebugInfo('Target 1 Lost', '3D Model Hidden', 'None');
                 }
             });
 
