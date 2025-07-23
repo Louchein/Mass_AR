@@ -93,6 +93,9 @@
   
   <body>
 
+    <!-- Debug Info Panel - AGREGADO -->
+    <div id="debug-info">Estado cámara: Iniciando...</div>
+
     <!-- Status Display -->
     <div id="status">Apunta la cámara al QR o a la ilustración</div>
 
@@ -183,6 +186,12 @@
             console.log('iOS detected:', isIOS);
             console.log('Needs user interaction:', needsUserInteraction);
             
+            // Verificar que los elementos existen antes de proceder
+            if (!debugInfo) {
+                console.error('Debug info element not found!');
+                return;
+            }
+            
             // Auto-initialize video system on load
             if (isIOS) {
                 // On iOS, show the init button and wait for user interaction
@@ -214,17 +223,19 @@
 
             // Update debug information
             function updateDebugInfo(targetStatus, videoStatus, currentVideoName) {
-                debugInfo.innerHTML = `
-                    Target Status: ${targetStatus}<br>
-                    Video Status: ${videoStatus}<br>
-                    Current Video: ${currentVideoName}<br>
-                    Video A Time: ${lastPlaybackTime.a.toFixed(2)}s<br>
-                    Video B Time: ${lastPlaybackTime.b.toFixed(2)}s<br>
-                    System Ready: ${isVideoSystemReady}<br>
-                    Videos Unlocked: ${videosUnlocked}<br>
-                    iOS: ${isIOS}<br>
-                    Controls Visible: ${controls.style.display === 'flex' ? 'Yes' : 'No'}
-                `;
+                if (debugInfo) {
+                    debugInfo.innerHTML = `
+                        Target Status: ${targetStatus}<br>
+                        Video Status: ${videoStatus}<br>
+                        Current Video: ${currentVideoName}<br>
+                        Video A Time: ${lastPlaybackTime.a.toFixed(2)}s<br>
+                        Video B Time: ${lastPlaybackTime.b.toFixed(2)}s<br>
+                        System Ready: ${isVideoSystemReady}<br>
+                        Videos Unlocked: ${videosUnlocked}<br>
+                        iOS: ${isIOS}<br>
+                        Controls Visible: ${controls.style.display === 'flex' ? 'Yes' : 'No'}
+                    `;
+                }
             }
 
             // Check if a video can be loaded
