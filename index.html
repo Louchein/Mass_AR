@@ -227,97 +227,135 @@
                 `;
             }
 
+            // Check if a video can be loaded
+            function checkVideoLoad(video, name) {
+                return new Promise((resolve, reject) => {
+                    console.log(`Checking ${name}:`, video.src);
+                    
+                    if (video.readyState >= 3) { // HAVE_FUTURE_DATA
+                        console.log(`${name} already loaded`);
+                        resolve();
+                    } else {
+                        const onLoad = () => {
+                            console.log(`${name} loaded successfully`);
+                            video.removeEventListener('canplay', onLoad);
+                            video.removeEventListener('loadeddata', onLoad);
+                            resolve();
+                        };
+                        
+                        const onError = (error) => {
+                            console.error(`${name} load error:`, error);
+                            video.removeEventListener('error', onError);
+                            reject(error);
+                        };
+                        
+                        video.addEventListener('canplay', onLoad, { once: true });
+                        video.addEventListener('loadeddata', onLoad, { once: true });
+                        video.addEventListener('error', onError, { once: true });
+                        
+                        // Force load attempt
+                        video.load();
+                    }
+                });
+            }
+
             // Initialize video system automatically
             function initializeVideoSystem() {
                 console.log('Auto-initializing video system...');
+                status.textContent = 'Cargando videos...';
                 
-                // First check if videos can load
-                const checkVideoA = new Promise((resolve, reject) => {
-                    if (videoA.readyState >= 3) { // HAVE_FUTURE_DATA
-                        resolve();
-                    } else {
-                        const onLoad = () => {
-                            videoA.removeEventListener('canplay', onLoad);
-                            videoA.removeEventListener('loadeddata', onLoad);
-                            resolve();
-                        };
-                        videoA.addEventListener('canplay', onLoad, { once: true });
-                        videoA.addEventListener('loadeddata', onLoad, { once: true });
-                        videoA.addEventListener('error', reject, { once: true });
+                // Try to load both videos
+                const checkVideoA = checkVideoLoad(videoA, 'Video A');
+                const checkVideoB = checkVideoLoad(videoB, 'Video B');
+                
+                Promise.allSettled([checkVideoA, checkVideoB]).then((results) => {
+                    const videoAResult = results[0];
+                    const videoBResult = results[1];
+                    
+                    console.log('Video A result:', videoAResult.status);
+                    console.log('Video B result:', videoBResult.status);
+                    
+                    let workingVideos = [];
+                    
+                    // Check which videos loaded successfully
+                    if (videoAResult.status === 'fulfilled') {
+                        workingVideos.push('A');
                     }
-                });
-                
-                const checkVideoB = new Promise((resolve, reject) => {
-                    if (videoB.readyState >= 3) { // HAVE_FUTURE_DATA
-                        resolve();
-                    } else {
-                        const onLoad = () => {
-                            videoB.removeEventListener('canplay', onLoad);
-                            videoB.removeEventListener('loadeddata', onLoad);
-                            resolve();
-                        };
-                        videoB.addEventListener('canplay', onLoad, { once: true });
-                        videoB.addEventListener('loadeddata', onLoad, { once: true });
-                        videoB.addEventListener('error', reject, { once: true });
+                    if (videoBResult.status === 'fulfilled') {
+                        workingVideos.push('B');
                     }
-                });
-                
-                Promise.all([checkVideoA, checkVideoB]).then(() => {
-                    console.log('Videos loaded successfully');
-                    // Try to play and pause both videos to prepare them (skip on iOS until user interaction)
+                    
+                    if (workingVideos.length === 0) {
+                        // No videos loaded
+                        console.error('No videos could be loaded');
+                        status.textContent = 'Error: No se pueden cargar los videos. Verifique que los archivos existan en la carpeta assets.';
+                        updateDebugInfo('Not Detected', 'Load Failed', 'None');
+                        return;
+                    }
+                    
+                    if (workingVideos.length === 1) {
+                        // Only one video loaded, use it for both buttons
+                        if (videoAResult.status === 'fulfilled') {
+                            console.log('Using Video A for both buttons');
+                            videoB.src = videoA.src;
+                            videoB.load();
+                            status.textContent = 'Usando el mismo video para ambos botones (Reel_BV_01.mp4)';
+                        } else {
+                            console.log('Using Video B for both buttons');
+                            videoA.src = videoB.src;
+                            videoA.load();
+                            status.textContent = 'Usando el mismo video para ambos botones (video.mp4)';
+                        }
+                    } else {
+                        console.log('Both videos loaded successfully');
+                        status.textContent = 'Ambos videos cargados correctamente';
+                    }
+                    
+                    // Try to unlock videos for playback (skip on iOS until user interaction)
                     if (!needsUserInteraction) {
-                        return Promise.all([
-                            videoA.play().then(() => {
-                                videoA.pause();
-                                console.log('Video A unlocked');
-                            }),
-                            videoB.play().then(() => {
-                                videoB.pause();
-                                console.log('Video B unlocked');
-                            })
-                        ]);
+                        return unlockVideos();
                     } else {
                         // On iOS, just mark as ready but don't try to play yet
                         console.log('iOS detected - waiting for user interaction');
+                        isVideoSystemReady = true;
+                        status.textContent = 'Oprime para permitir la reproducción de video (iOS)';
+                        updateDebugInfo('Not Detected', 'iOS Init Required', 'None');
                         return Promise.resolve();
                     }
                 }).then(() => {
-                    console.log('Video system auto-initialized successfully');
-                    isVideoSystemReady = true;
-                    
                     if (!needsUserInteraction) {
-                        videoA.muted = false;
-                        videoB.muted = false;
+                        console.log('Video system auto-initialized successfully');
+                        isVideoSystemReady = true;
                         videosUnlocked = true;
                         status.textContent = '¡Videos listos! Apunta la cámara al QR o a la ilustración';
-                    } else {
-                        status.textContent = 'Oprime para permitir la reproducción de video (iOS)';
+                        updateDebugInfo('Not Detected', 'Ready', 'None');
                     }
-                    
-                    updateDebugInfo('Not Detected', 'Ready', 'None');
                 }).catch((error) => {
                     console.error('Video system auto-initialization failed:', error);
-                    
-                    if (needsUserInteraction) {
-                        status.textContent = 'Oprime para permitir la reproducción de video (iOS)';
-                        isVideoSystemReady = true; // Still mark as ready for iOS
-                    } else {
-                        status.textContent = 'Using same video for both buttons (video.mp4)';
-                        // Try with just one video if both fail
-                        videoA.play().then(() => {
-                            videoA.pause();
-                            videoA.muted = false;
-                            videoB.src = videoA.src; // Use same source
-                            isVideoSystemReady = true;
-                            videosUnlocked = true;
-                            status.textContent = '¡Listo! Apunta la cámara al QR o a la ilustración';
-                            updateDebugInfo('Not Detected', 'Ready', 'None');
-                        }).catch(() => {
-                            status.textContent = 'No se puede cargar el video especificado. Por favor revise el folder.';
-                            isVideoSystemReady = false;
-                        });
-                    }
+                    status.textContent = 'Error al inicializar el sistema de videos';
+                    updateDebugInfo('Not Detected', 'Init Failed', 'None');
                 });
+            }
+
+            // Unlock videos for playback
+            function unlockVideos() {
+                const unlockA = videoA.play().then(() => {
+                    videoA.pause();
+                    videoA.muted = false;
+                    console.log('Video A unlocked');
+                }).catch((error) => {
+                    console.warn('Video A unlock failed:', error);
+                });
+
+                const unlockB = videoB.play().then(() => {
+                    videoB.pause();
+                    videoB.muted = false;
+                    console.log('Video B unlocked');
+                }).catch((error) => {
+                    console.warn('Video B unlock failed:', error);
+                });
+
+                return Promise.allSettled([unlockA, unlockB]);
             }
 
             // Show iOS initialization button
@@ -341,32 +379,8 @@
                 videoA.muted = true;
                 videoB.muted = true;
                 
-                // Try to play and pause both videos to unlock them
-                const unlockVideoA = videoA.play().then(() => {
-                    console.log('Video A played successfully');
-                    return videoA.pause();
-                }).then(() => {
-                    console.log('Video A paused successfully');
-                    videoA.muted = false; // Unmute after successful unlock
-                }).catch((error) => {
-                    console.error('Video A unlock failed:', error);
-                    throw error;
-                });
-
-                const unlockVideoB = videoB.play().then(() => {
-                    console.log('Video B played successfully');
-                    return videoB.pause();
-                }).then(() => {
-                    console.log('Video B paused successfully');
-                    videoB.muted = false; // Unmute after successful unlock
-                }).catch((error) => {
-                    console.error('Video B unlock failed:', error);
-                    // For Video B, we can fallback to using the same source as Video A
-                    videoB.src = videoA.src;
-                    return videoB.load();
-                });
-                
-                Promise.all([unlockVideoA, unlockVideoB]).then(() => {
+                // Try to unlock both videos
+                unlockVideos().then(() => {
                     console.log('iOS videos unlocked successfully');
                     needsUserInteraction = false;
                     videosUnlocked = true;
@@ -375,29 +389,12 @@
                     updateDebugInfo('Not Detected', 'Ready (iOS Unlocked)', 'None');
                 }).catch((error) => {
                     console.error('iOS video unlock failed:', error);
-                    
-                    // Try with just one video as fallback
-                    videoA.play().then(() => {
-                        return videoA.pause();
-                    }).then(() => {
-                        console.log('Fallback: Using single video for both buttons');
-                        videoA.muted = false;
-                        videoB.src = videoA.src;
-                        videoB.muted = false;
-                        needsUserInteraction = false;
-                        videosUnlocked = true;
-                        hideIOSInitButton();
-                        status.textContent = '¡Videos listos! Apunta la cámara al QR o a la ilustración';
-                        updateDebugInfo('Not Detected', 'Ready (iOS Unlocked - Fallback)', 'None');
-                    }).catch(() => {
-                        console.error('Complete iOS video unlock failure');
-                        status.textContent = 'No se puede cargar el video especificado en iOS. Por favor recargue la página.';
-                        updateDebugInfo('Not Detected', 'iOS Unlock Failed', 'None');
-                    });
+                    status.textContent = 'Error al desbloquear videos en iOS. Por favor recargue la página.';
+                    updateDebugInfo('Not Detected', 'iOS Unlock Failed', 'None');
                 });
             }
 
-            // iOS initialization button click handler - THIS WAS MISSING!
+            // iOS initialization button click handler
             iosInitButton.addEventListener('click', (e) => {
                 e.preventDefault();
                 console.log('iOS init button clicked');
@@ -623,14 +620,12 @@
                 console.error('Video A Error:', e);
                 console.error('Video A src:', videoA.src);
                 console.error('Video A error code:', videoA.error ? videoA.error.code : 'unknown');
-                status.textContent = 'Error: Cannot find video.mp4 in assets folder';
             });
 
             videoB.addEventListener('error', (e) => {
                 console.error('Video B Error:', e);
                 console.error('Video B src:', videoB.src);
                 console.error('Video B error code:', videoB.error ? videoB.error.code : 'unknown');
-                status.textContent = 'Error: Cannot find video.mp4 in assets folder';
             });
 
             // Initialize display
