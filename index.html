@@ -269,28 +269,41 @@
                 const checkVideoB = checkVideoLoad(videoB, 'Video B');
                 
                 Promise.allSettled([checkVideoA, checkVideoB]).then((results) => {
+                    console.log('Promise.allSettled completed');
                     const videoAResult = results[0];
                     const videoBResult = results[1];
                     
                     console.log('Video A result:', videoAResult.status);
                     console.log('Video B result:', videoBResult.status);
                     
+                    if (videoAResult.status === 'rejected') {
+                        console.error('Video A rejection reason:', videoAResult.reason);
+                    }
+                    if (videoBResult.status === 'rejected') {
+                        console.error('Video B rejection reason:', videoBResult.reason);
+                    }
+                    
                     let workingVideos = [];
                     
                     // Check which videos loaded successfully
                     if (videoAResult.status === 'fulfilled') {
                         workingVideos.push('A');
+                        console.log('Video A loaded successfully');
                     }
                     if (videoBResult.status === 'fulfilled') {
                         workingVideos.push('B');
+                        console.log('Video B loaded successfully');
                     }
+                    
+                    console.log('Working videos:', workingVideos);
                     
                     if (workingVideos.length === 0) {
                         // No videos loaded
                         console.error('No videos could be loaded');
                         status.textContent = 'Error: No se pueden cargar los videos. Verifique que los archivos existan en la carpeta assets.';
                         updateDebugInfo('Not Detected', 'Load Failed', 'None');
-                        return;
+                        isVideoSystemReady = false;
+                        return Promise.resolve(); // Don't chain further
                     }
                     
                     if (workingVideos.length === 1) {
@@ -298,12 +311,10 @@
                         if (videoAResult.status === 'fulfilled') {
                             console.log('Using Video A for both buttons');
                             videoB.src = videoA.src;
-                            videoB.load();
                             status.textContent = 'Usando el mismo video para ambos botones (Reel_BV_01.mp4)';
                         } else {
                             console.log('Using Video B for both buttons');
                             videoA.src = videoB.src;
-                            videoA.load();
                             status.textContent = 'Usando el mismo video para ambos botones (video.mp4)';
                         }
                     } else {
@@ -313,7 +324,11 @@
                     
                     // Try to unlock videos for playback (skip on iOS until user interaction)
                     if (!needsUserInteraction) {
-                        return unlockVideos();
+                        console.log('Attempting to unlock videos...');
+                        return unlockVideos().then(() => {
+                            console.log('Videos unlocked successfully');
+                            return Promise.resolve();
+                        });
                     } else {
                         // On iOS, just mark as ready but don't try to play yet
                         console.log('iOS detected - waiting for user interaction');
@@ -323,6 +338,7 @@
                         return Promise.resolve();
                     }
                 }).then(() => {
+                    console.log('Final then block reached');
                     if (!needsUserInteraction) {
                         console.log('Video system auto-initialized successfully');
                         isVideoSystemReady = true;
@@ -331,31 +347,47 @@
                         updateDebugInfo('Not Detected', 'Ready', 'None');
                     }
                 }).catch((error) => {
-                    console.error('Video system auto-initialization failed:', error);
-                    status.textContent = 'Error al inicializar el sistema de videos';
+                    console.error('Video system auto-initialization failed in catch block:', error);
+                    console.error('Error stack:', error.stack);
+                    status.textContent = 'Error al inicializar el sistema de videos: ' + error.message;
                     updateDebugInfo('Not Detected', 'Init Failed', 'None');
                 });
             }
 
             // Unlock videos for playback
             function unlockVideos() {
+                console.log('Starting video unlock process...');
+                
                 const unlockA = videoA.play().then(() => {
-                    videoA.pause();
+                    console.log('Video A play() succeeded');
+                    return videoA.pause();
+                }).then(() => {
+                    console.log('Video A pause() succeeded');
                     videoA.muted = false;
-                    console.log('Video A unlocked');
+                    console.log('Video A unlocked successfully');
                 }).catch((error) => {
-                    console.warn('Video A unlock failed:', error);
+                    console.error('Video A unlock failed:', error);
+                    // Don't throw, just log the error
+                    return Promise.resolve();
                 });
 
                 const unlockB = videoB.play().then(() => {
-                    videoB.pause();
+                    console.log('Video B play() succeeded');
+                    return videoB.pause();
+                }).then(() => {
+                    console.log('Video B pause() succeeded');
                     videoB.muted = false;
-                    console.log('Video B unlocked');
+                    console.log('Video B unlocked successfully');
                 }).catch((error) => {
-                    console.warn('Video B unlock failed:', error);
+                    console.error('Video B unlock failed:', error);
+                    // Don't throw, just log the error
+                    return Promise.resolve();
                 });
 
-                return Promise.allSettled([unlockA, unlockB]);
+                return Promise.all([unlockA, unlockB]).then(() => {
+                    console.log('All video unlock attempts completed');
+                    return Promise.resolve();
+                });
             }
 
             // Show iOS initialization button
