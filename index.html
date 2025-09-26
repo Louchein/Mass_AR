@@ -1,478 +1,283 @@
+<!DOCTYPE html>
 <html>
-  <head>
+<head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
-        #debug-info {
+        #status {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        #debug {
             position: fixed;
             top: 10px;
             left: 10px;
             background: rgba(0,0,0,0.7);
             color: white;
             padding: 10px;
-            z-index: 1000;
             font-family: monospace;
             font-size: 12px;
-        }
-        
-        #controls {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            display: none; /* Hidden by default */
-            gap: 20px;
-        }
-        
-        .video-button {
-            padding: 15px 25px;
-            font-size: 16px;
-            font-weight: bold;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            touch-action: manipulation;
-        }
-        
-        #button-a {
-            background-color: #FF6B6B;
-        }
-        
-        #button-b {
-            background-color: #4ECDC4;
-        }
-        
-        .video-button:active {
-            transform: scale(0.95);
-        }
-        
-        .video-button.selected {
-            box-shadow: 0 0 15px rgba(255,255,255,0.5);
-            transform: scale(1.05);
-        }
-        
-        #status {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-        }
-        
-        #ios-init-button {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1001;
-            padding: 20px 30px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            display: none;
-            cursor: pointer;
-        }
-
-        #ios-init-button:active {
-            background-color: #45a049;
+            z-index: 999;
+            border-radius: 5px;
         }
     </style>
-  </head>
-  
-  <body>
+</head>
 
-    <!-- Debug Info Panel - AGREGADO -->
-    <div id="debug-info" style="display: none;">Estado cámara: Iniciando...</div>
+<body>
+    <div id="status">Iniciando cámara...</div>
+    <div id="debug">Debug: Cargando...</div>
 
-    <!-- Status Display -->
-    <div id="status">Apunta la cámara al QR o a la ilustración</div>
-
-    <!-- Control Buttons (hidden initially) -->
-    <div id="controls">
-        <button id="button-a" class="video-button">VIDEO Bolsa Vida</button>
-        <button id="button-b" class="video-button">VIDEO Mass Solutions</button>
-    </div>
-
-    <!-- iOS Video Initialization Button -->
-    <button id="ios-init-button">🎥 Cargar Videos (Toca para continuar)</button>
-    
-    <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; 
-                           maxTrack: 2; 
-                           autoStart: true" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
-      
-      <!-- Asset Management -->
-      <a-assets>
-        <a-asset-item id="animatedLogoModel" src="./assets/logo.glb"></a-asset-item>
+    <a-scene 
+        mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 2; autoStart: true"
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
         
-        <!-- Video A - Using the original video file -->
-        <video 
-            id="video-a" 
-            src="./assets/Reel_BV_01.mp4" 
-            preload="auto" 
-            webkit-playsinline 
-            playsinline
-            muted 
-            crossorigin="anonymous"
-        ></video>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
         
-        <!-- Video B - Also using the same video for now -->
-        <video 
-            id="video-b" 
-            src="./assets/video.mp4" 
-            preload="auto" 
-            webkit-playsinline 
-            playsinline
-            muted 
-            crossorigin="anonymous"
-        ></video>
-      </a-assets>
-      
-      <!-- Camera -->
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-      
-      <!-- 3D Model Entity (Target Index 1) -->
-      <a-entity mindar-image-target="targetIndex: 1">
-        <a-gltf-model rotation="90 -90 -90 " position="0 0 0" scale="7.0 7.0 7.0" src="#animatedLogoModel" animation-mixer>
-      </a-entity>
-      
-      <!-- Video Display (Target Index 0) -->
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-video 
-          id="video-display"
-          src="#video-a" 
-          width="3" 
-          height="1.5" 
-          position="0 0 0" 
-          rotation="0 0 0"
-          visible="false"
-        ></a-video>
-      </a-entity>
+        <!-- Target 0: Sistema de partículas doradas (como fuegos artificiales) -->
+        <a-entity mindar-image-target="targetIndex: 0" id="target0">
+            <!-- Partículas principales -->
+            <a-entity 
+                id="particles0"
+                position="0 0 0"
+                particle-system="
+                    preset: default;
+                    particleCount: 200;
+                    type: 1;
+                    texture: #particleTexture0;
+                    size: 0.5;
+                    color: #FFD700, #FF6B35, #F7931E;
+                    velocityValue: 0 8 0;
+                    velocitySpread: 5 2 5;
+                    accelerationValue: 0 -5 0;
+                    rotationAngle: 90;
+                    rotationAngleSpread: 180;
+                    opacity: 0.8, 0.1;
+                    blending: 1;
+                "
+                visible="false">
+            </a-entity>
+            
+            <!-- Texto flotante -->
+            <a-text 
+                id="text0"
+                value="¡BOLSA VIDA!" 
+                position="0 1.5 0" 
+                align="center" 
+                color="#FFD700"
+                scale="2 2 2"
+                visible="false"
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
+            </a-text>
+        </a-entity>
+
+        <!-- Target 1: Sistema de partículas azules (como lluvia hacia arriba) -->
+        <a-entity mindar-image-target="targetIndex: 1" id="target1">
+            <!-- Partículas principales -->
+            <a-entity 
+                id="particles1"
+                position="0 0 0"
+                particle-system="
+                    preset: default;
+                    particleCount: 150;
+                    type: 1;
+                    texture: #particleTexture1;
+                    size: 0.3;
+                    color: #00BFFF, #4ECDC4, #45B7D1;
+                    velocityValue: 0 6 0;
+                    velocitySpread: 3 1 3;
+                    accelerationValue: 0 -3 0;
+                    rotationAngle: 0;
+                    rotationAngleSpread: 360;
+                    opacity: 0.9, 0.2;
+                    blending: 1;
+                "
+                visible="false">
+            </a-entity>
+            
+            <!-- Modelo 3D (si existe) -->
+            <a-gltf-model 
+                id="model1"
+                rotation="90 -90 -90" 
+                position="0 0 0" 
+                scale="5 5 5" 
+                src="./assets/logo.glb" 
+                animation-mixer
+                visible="false">
+            </a-gltf-model>
+            
+            <!-- Texto flotante -->
+            <a-text 
+                id="text1"
+                value="MASS SOLUTIONS" 
+                position="0 2 0" 
+                align="center" 
+                color="#00BFFF"
+                scale="1.5 1.5 1.5"
+                visible="false"
+                animation="property: position; to: 0 2.5 0; dir: alternate; loop: true; dur: 2000">
+            </a-text>
+        </a-entity>
+
+        <!-- Assets para texturas de partículas -->
+        <a-assets>
+            <!-- Textura circular para partículas doradas -->
+            <a-mixin 
+                id="particleTexture0"
+                geometry="primitive: circle; radius: 0.1"
+                material="color: #FFD700; transparent: true; opacity: 0.8">
+            </a-mixin>
+            
+            <!-- Textura para partículas azules -->
+            <a-mixin 
+                id="particleTexture1"
+                geometry="primitive: circle; radius: 0.05"
+                material="color: #00BFFF; transparent: true; opacity: 0.9">
+            </a-mixin>
+        </a-assets>
     </a-scene>
-      
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const sceneEl = document.querySelector('a-scene');
-            const videoA = document.querySelector('#video-a');
-            const videoB = document.querySelector('#video-b');
-            const videoDisplay = document.querySelector('#video-display');
-            const debugInfo = document.querySelector('#debug-info');
-            const buttonA = document.querySelector('#button-a');
-            const buttonB = document.querySelector('#button-b');
-            const status = document.querySelector('#status');
-            const controls = document.querySelector('#controls');
-            const iosInitButton = document.querySelector('#ios-init-button');
+            const status = document.getElementById('status');
+            const debug = document.getElementById('debug');
             
-            let currentVideo = null;
-            let isTargetCurrentlyDetected = false;
-            let isVideoSystemReady = false;
-            let lastPlaybackTime = { a: 0, b: 0 };
-            let currentVideoType = null;
-            let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            let needsUser Interaction = isIOS;
-            let videosUnlocked = false;
-            
-            console.log('iOS detected:', isIOS);
-            console.log('Needs user interaction:', needsUser Interaction);
-            
-            // Verificar que los elementos existen antes de proceder
-            if (!debugInfo) {
-                console.error('Debug info element not found!');
-                return;
-            }
-            
-            // Auto-initialize video system on load
-            if (isIOS) {
-                // On iOS, show a cleaner init message and button
-                status.textContent = 'Permite acceso a cámara y toca el botón para cargar videos';
-                showIOSInitButton();
-            } else {
-                // On other platforms, auto-initialize
-                initializeVideoSystem();
-            }
-          
-            // Camera initialization debugging
-            debugInfo.innerHTML += '<br>Estado cámara: Iniciando automáticamente...';
+            let activeTargets = new Set();
 
-            // Función para crear un sistema de partículas sencillo de celebración
-            function createCelebrationParticles(targetEl) {
-                // Remover partículas existentes si hay (para evitar spam)
-                const existingParticles = targetEl.querySelector('a-entity[particle-system]');
-                if (existingParticles) {
-                    existingParticles.parentNode.removeChild(existingParticles);
+            // Elementos para cada target
+            const target0Elements = {
+                particles: document.getElementById('particles0'),
+                text: document.getElementById('text0')
+            };
+
+            const target1Elements = {
+                particles: document.getElementById('particles1'),
+                text: document.getElementById('text1'),
+                model: document.getElementById('model1')
+            };
+
+            function updateDebug() {
+                debug.innerHTML = `
+                    Targets activos: ${Array.from(activeTargets).join(', ')}<br>
+                    Estado AR: ${sceneEl.is('arReady') ? 'Listo' : 'Cargando'}<br>
+                    Total detectados: ${activeTargets.size}
+                `;
+            }
+
+            function updateStatus() {
+                if (activeTargets.size === 0) {
+                    status.textContent = '📱 Apunta la cámara al QR o ilustración';
+                } else if (activeTargets.size === 1) {
+                    const target = Array.from(activeTargets)[0];
+                    status.textContent = `✨ Target ${target} detectado - ¡Mira las partículas!`;
+                } else {
+                    status.textContent = `🎉 ¡${activeTargets.size} targets detectados!`;
                 }
+            }
 
-                // Crear entidad de partículas
-                const particles = document.createElement('a-entity');
-                particles.setAttribute('particle-system', {
-                    color: '#FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7, #DDA0DD',  // Colores festivos
-                    velocity: '0 2 0',  // Velocidad inicial hacia arriba
-                    acceleration: '0 -9.8 0',  // Gravedad para que caigan
-                    velocitySpread: '4 4 4',  // Dispersión de velocidad para explosión
-                    positionSpread: '0.3 0.3 0.3',  // Dispersión inicial de posición
-                    rotation: '0 0 0',
-                    rotationSpread: '180 180 180',  // Rotación aleatoria
-                    startSize: 0.08,  // Tamaño inicial
-                    endSize: 0.02,  // Tamaño final (se encogen)
-                    sizeSpread: 0.03,
-                    duration: 0.3,  // Duración corta de emisión para un "burst"
-                    ttl: 2.5,  // Tiempo de vida de cada partícula
-                    count: 80,  // Número de partículas emitidas
-                    particleCount: 80  // Total de partículas
-                });
-                particles.setAttribute('position', '0 0 0');  // Posición relativa al target
-                targetEl.appendChild(particles);
-
-                console.log('Sistema de partículas activado para celebración');
-
-                // Remover automáticamente después de un tiempo
-                setTimeout(() => {
-                    if (particles.parentNode) {
-                        particles.parentNode.removeChild(particles);
+            // Función para mostrar efectos de un target específico
+            function showTargetEffects(targetIndex) {
+                console.log(`Mostrando efectos para target ${targetIndex}`);
+                
+                if (targetIndex === 0) {
+                    // Target 0: Partículas doradas + texto
+                    target0Elements.particles.setAttribute('visible', 'true');
+                    target0Elements.text.setAttribute('visible', 'true');
+                    
+                    // Reiniciar animación de partículas
+                    target0Elements.particles.setAttribute('particle-system', 'enabled', true);
+                    
+                } else if (targetIndex === 1) {
+                    // Target 1: Partículas azules + modelo + texto
+                    target1Elements.particles.setAttribute('visible', 'true');
+                    target1Elements.text.setAttribute('visible', 'true');
+                    
+                    // Mostrar modelo 3D si existe
+                    if (target1Elements.model) {
+                        target1Elements.model.setAttribute('visible', 'true');
                     }
-                }, 3000);  // Un poco más que ttl para limpieza
+                    
+                    // Reiniciar animación de partículas
+                    target1Elements.particles.setAttribute('particle-system', 'enabled', true);
+                }
             }
 
-            // Listen for specific AR.js/MindAR events
-            sceneEl.addEventListener('arReady', (event) => {
-                console.log('AR System Ready');
-                debugInfo.innerHTML = debugInfo.innerHTML.replace('Estado cámara: Iniciando automáticamente...', 
-                                                                'Estado cámara: RA lista');
-                if (!isIOS) {
-                    status.textContent = '¡RA lista! Apunta la cámara al QR o a la ilustración';
-                } else if (videosUnlocked && isVideoSystemReady) {
-                    status.textContent = '¡RA lista! Apunta la cámara al QR o a la ilustración';
+            // Función para ocultar efectos de un target específico
+            function hideTargetEffects(targetIndex) {
+                console.log(`Ocultando efectos para target ${targetIndex}`);
+                
+                if (targetIndex === 0) {
+                    target0Elements.particles.setAttribute('visible', 'false');
+                    target0Elements.text.setAttribute('visible', 'false');
+                    
+                } else if (targetIndex === 1) {
+                    target1Elements.particles.setAttribute('visible', 'false');
+                    target1Elements.text.setAttribute('visible', 'false');
+                    
+                    if (target1Elements.model) {
+                        target1Elements.model.setAttribute('visible', 'false');
+                    }
                 }
-                // En iOS, si los videos no están listos, mantener el mensaje actual
+            }
+
+            // Eventos de AR
+            sceneEl.addEventListener('arReady', (event) => {
+                console.log('✅ AR System Ready');
+                status.textContent = '🎯 ¡AR listo! Apunta la cámara al QR o ilustración';
+                updateDebug();
             });
 
             sceneEl.addEventListener('arError', (event) => {
-                console.error('AR Error:', event.detail);
-                debugInfo.innerHTML = debugInfo.innerHTML.replace('Estado cámara: Iniciando automáticamente...', 
-                                                                'Estado cámara: ERROR - ' + event.detail);
-                status.textContent = 'Inicialización RA fallida. Por favor recargue la página.';
+                console.error('❌ AR Error:', event.detail);
+                status.textContent = '❌ Error de AR - Recarga la página';
+                debug.innerHTML = `ERROR: ${JSON.stringify(event.detail)}`;
             });
 
-            // Update debug information
-            function updateDebugInfo(targetStatus, videoStatus, currentVideoName) {
-                if (debugInfo) {
-                    debugInfo.innerHTML = `
-                        Target Status: ${targetStatus}<br>
-                        Video Status: ${videoStatus}<br>
-                        Current Video: ${currentVideoName}<br>
-                        Video A Time: ${lastPlaybackTime.a.toFixed(2)}s<br>
-                        Video B Time: ${lastPlaybackTime.b.toFixed(2)}s<br>
-                        System Ready: ${isVideoSystemReady}<br>
-                        Videos Unlocked: ${videosUnlocked}<br>
-                        iOS: ${isIOS}<br>
-                        Controls Visible: ${controls.style.display === 'flex' ? 'Yes' : 'No'}
-                    `;
-                }
-            }
-
-            // Check if a video can be loaded
-            function checkVideoLoad(video, name) {
-                return new Promise((resolve, reject) => {
-                    console.log(`Checking ${name}:`, video.src);
-                    
-                    if (video.readyState >= 3) { // HAVE_FUTURE_DATA
-                        console.log(`${name} already loaded`);
-                        resolve();
-                    } else {
-                        const onLoad = () => {
-                            console.log(`${name} loaded successfully`);
-                            video.removeEventListener('canplay', onLoad);
-                            video.removeEventListener('loadeddata', onLoad);
-                            resolve();
-                        };
-                        
-                        const onError = (error) => {
-                            console.error(`${name} load error:`, error);
-                            video.removeEventListener('error', onError);
-                            reject(error);
-                        };
-                        
-                        video.addEventListener('canplay', onLoad, { once: true });
-                        video.addEventListener('loadeddata', onLoad, { once: true });
-                        video.addEventListener('error', onError, { once: true });
-                        
-                        // Force load attempt
-                        video.load();
-                    }
-                });
-            }
-
-            // Initialize video system automatically
-            function initializeVideoSystem() {
-                console.log('Auto-initializing video system...');
-                status.textContent = 'Cargando videos...';
+            // Eventos de detección de targets
+            sceneEl.addEventListener('targetFound', (event) => {
+                const targetEl = event.target;
+                const targetIndex = targetEl.getAttribute('mindar-image-target').targetIndex;
                 
-                // Try to load both videos
-                const checkVideoA = checkVideoLoad(videoA, 'Video A');
-                const checkVideoB = checkVideoLoad(videoB, 'Video B');
+                console.log(`🎯 Target ${targetIndex} encontrado`);
+                activeTargets.add(targetIndex);
                 
-                Promise.allSettled([checkVideoA, checkVideoB]).then((results) => {
-                    console.log('Promise.allSettled completed');
-                    const videoAResult = results[0];
-                    const videoBResult = results[1];
-                    
-                    console.log('Video A result:', videoAResult.status);
-                    console.log('Video B result:', videoBResult.status);
-                    
-                    if (videoAResult.status === 'rejected') {
-                        console.error('Video A rejection reason:', videoAResult.reason);
-                    }
-                    if (videoBResult.status === 'rejected') {
-                        console.error('Video B rejection reason:', videoBResult.reason);
-                    }
-                    
-                    let workingVideos = [];
-                    
-                    // Check which videos loaded successfully
-                    if (videoAResult.status === 'fulfilled') {
-                        workingVideos.push('A');
-                        console.log('Video A loaded successfully');
-                    }
-                    if (videoBResult.status === 'fulfilled') {
-                        workingVideos.push('B');
-                        console.log('Video B loaded successfully');
-                    }
-                    
-                    console.log('Working videos:', workingVideos);
-                    
-                    if (workingVideos.length === 0) {
-                        // No videos loaded
-                        console.error('No videos could be loaded');
-                        status.textContent = 'Error: No se pueden cargar los videos. Verifique que los archivos existan en la carpeta assets.';
-                        updateDebugInfo('Not Detected', 'Load Failed', 'None');
-                        isVideoSystemReady = false;
-                        return Promise.resolve(); // Don't chain further
-                    }
-                    
-                    if (workingVideos.length === 1) {
-                        // Only one video loaded, use it for both buttons
-                        if (videoAResult.status === 'fulfilled') {
-                            console.log('Using Video A for both buttons');
-                            videoB.src = videoA.src;
-                            status.textContent = 'Usando el mismo video para ambos botones (Reel_BV_01.mp4)';
-                        } else {
-                            console.log('Using Video B for both buttons');
-                            videoA.src = videoB.src;
-                            status.textContent = 'Usando el mismo video para ambos botones (video.mp4)';
-                        }
-                    } else {
-                        console.log('Both videos loaded successfully');
-                        status.textContent = 'Ambos videos cargados correctamente';
-                    }
-                    
-                    // Try to unlock videos for playback (skip on iOS until user interaction)
-                    if (!needsUser Interaction) {
-                        console.log('Attempting to unlock videos...');
-                        return unlockVideos().then(() => {
-                            console.log('Videos unlocked successfully');
-                            return Promise.resolve();
-                        });
-                    } else {
-                        // On iOS, just mark as ready but don't try to play yet
-                        console.log('iOS detected - waiting for user interaction');
-                        isVideoSystemReady = true;
-                        status.textContent = 'Oprime para permitir la reproducción de video (iOS)';
-                        updateDebugInfo('Not Detected', 'iOS Init Required', 'None');
-                        return Promise.resolve();
-                    }
-                }).then(() => {
-                    console.log('Final then block reached');
-                    if (!needsUser Interaction) {
-                        console.log('Video system auto-initialized successfully');
-                        isVideoSystemReady = true;
-                        videosUnlocked = true;
-                        status.textContent = '¡Videos listos! Apunta la cámara al QR o a la ilustración';
-                        updateDebugInfo('Not Detected', 'Ready', 'None');
-                    }
-                }).catch((error) => {
-                    console.error('Video system auto-initialization failed in catch block:', error);
-                    console.error('Error stack:', error.stack);
-                    status.textContent = 'Error al inicializar el sistema de videos: ' + error.message;
-                    updateDebugInfo('Not Detected', 'Init Failed', 'None');
-                });
-            }
+                showTargetEffects(targetIndex);
+                updateStatus();
+                updateDebug();
+            });
 
-            // Unlock videos for playback
-            function unlockVideos() {
-                console.log('Starting video unlock process...');
+            sceneEl.addEventListener('targetLost', (event) => {
+                const targetEl = event.target;
+                const targetIndex = targetEl.getAttribute('mindar-image-target').targetIndex;
                 
-                const unlockA = videoA.play().then(() => {
-                    console.log('Video A play() succeeded');
-                    return videoA.pause();
-                }).then(() => {
-                    console.log('Video A pause() succeeded');
-                    videoA.muted = false;
-                    console.log('Video A unlocked successfully');
-                }).catch((error) => {
-                    console.error('Video A unlock failed:', error);
-                    // Don't throw, just log the error
-                    return Promise.resolve();
-                });
-
-                const unlockB = videoB.play().then(() => {
-                    console.log('Video B play() succeeded');
-                    return videoB.pause();
-                }).then(() => {
-                    console.log('Video B pause() succeeded');
-                    videoB.muted = false;
-                    console.log('Video B unlocked successfully');
-                }).catch((error) => {
-                    console.error('Video B unlock failed:', error);
-                    // Don't throw, just log the error
-                    return Promise.resolve();
-                });
-
-                return Promise.all([unlockA, unlockB]).then(() => {
-                    console.log('All video unlock attempts completed');
-                    return Promise.resolve();
-                });
-            }
-
-            // Show iOS initialization button
-            function showIOSInitButton() {
-                iosInitButton.style.display = 'block';
-                updateDebugInfo('Not Detected', 'iOS Init Required', 'None');
-            }
-
-            // Hide iOS initialization button
-            function hideIOSInitButton() {
-                iosInitButton.style.display = 'none';
-            }
-
-            // Handle iOS video initialization
-            function initializeIOSVideos() {
-                console.log('Initializing iOS videos with user interaction');
-                status.textContent = 'Cargando videos...';
+                console.log(`📤 Target ${targetIndex} perdido`);
+                activeTargets.delete(targetIndex);
                 
-                // Ensure videos are muted initially for iOS
-                videoA.muted = true;
-                videoB.muted = true;
-                
-                // First complete the video system initialization for iOS
-                initializeVideoSystemForIOS().then(() => {
-                    console.log('iOS video system initialized, now unlocking videos');
-                    return unlockVideos();
-                }).then(() => {
-                    console.log('iOS videos unlocked successfully');
-                    needsUser Interaction = false;
-                    videosUnlocked = true;
-                    isVideoSystemReady = true; // CRÍTICO: Marcar sistema como listo
-                    hideIOSInitButton();
-                    status.textContent = '¡Videos listos! Apunta la cámara al QR o a la ilustración';
-                    updateDebugInfo('
+                hideTargetEffects(targetIndex);
+                updateStatus();
+                updateDebug();
+            });
+
+            // Inicialización
+            updateDebug();
+            console.log('🚀 Sistema de partículas AR inicializado');
+        });
+    </script>
+</body>
+</html>
