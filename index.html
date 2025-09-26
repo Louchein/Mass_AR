@@ -1,6 +1,15 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <!-- AGREGADO: Permissions Policy para cámara y XR (arregla el violation) -->
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), xr-spatial-tracking=()">
+    <meta http-equiv="Feature-Policy" content="camera 'self'; microphone 'self'; xr-spatial-tracking 'self'"> <!-- Fallback para navegadores viejos -->
+   
+    <!-- AGREGADO: Para iOS/Safari (mejora permisos AR) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
@@ -108,7 +117,7 @@
     <!-- iOS Video Initialization Button -->
     <button id="ios-init-button">🎥 Cargar Videos (Toca para continuar)</button>
     
-    <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; 
+    <a-scene mindar-image="imageTargetSrc: https://msolutionsmedia.com/qr-realidad-aumentada/assets/targets.mind; 
                            maxTrack: 2; 
                            autoStart: true" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="disabled: false" device-orientation-permission-ui="enabled: false">
       
