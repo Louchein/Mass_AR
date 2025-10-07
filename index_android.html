@@ -88,10 +88,6 @@
         #ios-init-button:active {
             background-color: #45a049;
         }
-
-        .a-canvas {
-            transform: scaleX(-1);
-        }
     </style>
   </head>
   
@@ -167,6 +163,18 @@
     </a-scene>
       
     <script>
+        // Espejar el feed de la cámara cuando MindAR lo inicialice
+        const observer = new MutationObserver(() => {
+            const video = document.querySelector('video');
+            if (video) {
+                video.style.transform = "scaleX(-1)";
+                video.style.objectFit = "cover";
+                console.log("Feed de cámara espejado horizontalmente");
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+
         document.addEventListener('DOMContentLoaded', () => {
             const sceneEl = document.querySelector('a-scene');
             const videoA = document.querySelector('#video-a');
