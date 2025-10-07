@@ -754,6 +754,27 @@
 
             // Initialize display
             updateDebugInfo('Not Detected', 'Auto-Initializing', 'None');
+
+            // --- Intento 1: mirror de la textura de cámara (recomendado) ---
+            sceneEl.addEventListener('renderstart', () => {
+              try {
+                const threeScene = sceneEl.object3D;
+                threeScene.traverse(node => {
+                  // buscamos materiales que usen un VIDEO (imagen) como map
+                  if (node.material && node.material.map && node.material.map.image && node.material.map.image.tagName === 'VIDEO') {
+                    const map = node.material.map;
+                    // habilita repetición y voltea la textura en X
+                    map.wrapS = THREE.RepeatWrapping;
+                    map.repeat.x = -1;
+                    map.needsUpdate = true;
+                    console.log('Se espejó la textura del feed de cámara (Three.js VideoTexture).');
+                  }
+                });
+              } catch (err) {
+                console.warn('No se pudo espejar la textura de cámara (Three.js):', err);
+              }
+            });
+
         });
     </script>
     
