@@ -88,6 +88,10 @@
         #ios-init-button:active {
             background-color: #45a049;
         }
+
+        .a-canvas {
+            transform: scaleX(-1);
+        }
     </style>
   </head>
   
@@ -140,7 +144,7 @@
       </a-assets>
       
       <!-- Camera -->
-      <a-camera position="0 0 0" look-controls="enabled: false" scale="-1 1 1"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
       <!-- 3D Model Entity (Target Index 1) -->
       <a-entity mindar-image-target="targetIndex: 1">
