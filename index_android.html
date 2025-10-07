@@ -756,6 +756,7 @@
             updateDebugInfo('Not Detected', 'Auto-Initializing', 'None');
 
             // --- Intento 1: mirror de la textura de cámara (recomendado) ---
+            /*
             sceneEl.addEventListener('renderstart', () => {
               try {
                 const threeScene = sceneEl.object3D;
@@ -774,6 +775,39 @@
                 console.warn('No se pudo espejar la textura de cámara (Three.js):', err);
               }
             });
+            */
+
+            // --- Fallback: buscar el <video> de la cámara y aplicarle CSS ---
+            const mirrorCameraVideo = () => {
+              const vids = Array.from(document.querySelectorAll('video'));
+              for (let v of vids) {
+                // descartamos tus assets por id
+                if (v.id === 'video-a' || v.id === 'video-b') continue;
+                // el video de cámara suele no tener .src (usa srcObject) o tiene src vazio
+                const isCameraVideo = (!v.src || v.src === '') || v.srcObject;
+                if (isCameraVideo) {
+                  v.style.transform = 'scaleX(-1)';
+                  v.style.objectFit = 'cover';
+                  console.log('Se aplicó transform CSS al elemento <video> de la cámara.');
+                  return true;
+                }
+              }
+              console.log('No se encontró <video> de cámara para aplicar CSS.');
+              return false;
+            };
+            
+            // Ejecutar después de un delay corto por si MindAR aún lo crea
+            setTimeout(() => {
+              if (!mirrorCameraVideo()) {
+                // reintentar un par de veces
+                let tries = 0;
+                const t = setInterval(() => {
+                  tries++;
+                  if (mirrorCameraVideo() || tries > 6) clearInterval(t);
+                }, 500);
+              }
+            }, 300);
+
 
         });
     </script>
