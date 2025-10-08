@@ -22,8 +22,10 @@
             padding: 15px;
             z-index: 1000;
             font-family: monospace;
-            font-size: 11px;
+            font-size: 10px;
             max-width: 90%;
+            max-height: 40%;
+            overflow-y: auto;
             border: 2px solid #00ff00;
         }
         
@@ -47,6 +49,11 @@
         #start-button:active {
             background-color: #45a049;
             transform: translate(-50%, -50%) scale(0.95);
+        }
+
+        #start-button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
         }
         
         #controls {
@@ -102,23 +109,36 @@
             max-width: 80%;
             text-align: center;
         }
+
+        #error-details {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(255,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            max-width: 90%;
+            display: none;
+        }
     </style>
   </head>
   
   <body>
     <!-- Debug Info Panel -->
     <div id="debug-info">
-        🔍 DIAGNÓSTICO:<br>
-        Navegador: <span id="browser-info">Detectando...</span><br>
-        Cámara: <span id="camera-status">Verificando...</span><br>
-        WebGL: <span id="webgl-status">Verificando...</span><br>
-        Sistema AR: <span id="ar-status">No iniciado</span><br>
-        Target: <span id="target-status">No detectado</span><br>
-        Video: <span id="video-status">No cargado</span>
+        🔍 DIAGNÓSTICO COMPLETO:<br>
+        <div id="debug-log">Iniciando diagnóstico...<br></div>
     </div>
 
     <!-- Status Display -->
     <div id="status">Presiona el botón para iniciar</div>
+
+    <!-- Error Details -->
+    <div id="error-details"></div>
 
     <!-- Start Button -->
     <button id="start-button">▶️ INICIAR AR</button>
@@ -131,12 +151,13 @@
     
     <a-scene 
         id="ar-scene"
-        mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 2; autoStart: false; filterMinCF: 0.0001; filterBeta: 0.001"
+        mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 2; autoStart: false; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5"
         color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights: true, antialias: true"
+        renderer="colorManagement: true, physicallyCorrectLights: true, antialias: false, precision: mediump"
         vr-mode-ui="enabled: false" 
         device-orientation-permission-ui="enabled: true"
         embedded
+        loading-screen="enabled: false"
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
       
       <a-assets timeout="30000">
@@ -191,7 +212,7 @@
     </a-scene>
       
     <script>
-        // Polyfill para Promise.allSettled (no disponible en Android 7.1)
+        // Polyfill para Promise.allSettled
         if (!Promise.allSettled) {
             Promise.allSettled = function(promises) {
                 return Promise.all(promises.map(function(p) {
@@ -203,7 +224,18 @@
             };
         }
 
+        // Logger helper
+        var debugLog = document.querySelector('#debug-log');
+        function log(message) {
+            console.log(message);
+            var timestamp = new Date().toLocaleTimeString();
+            debugLog.innerHTML += '[' + timestamp + '] ' + message + '<br>';
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            log('DOM Cargado');
+            
             var sceneEl = document.querySelector('a-scene');
             var videoA = document.querySelector('#video-a');
             var videoB = document.querySelector('#video-b');
@@ -213,130 +245,156 @@
             var buttonB = document.querySelector('#button-b');
             var status = document.querySelector('#status');
             var controls = document.querySelector('#controls');
-            
-            // Debug elements
-            var browserInfo = document.querySelector('#browser-info');
-            var cameraStatus = document.querySelector('#camera-status');
-            var webglStatus = document.querySelector('#webgl-status');
-            var arStatus = document.querySelector('#ar-status');
-            var targetStatus = document.querySelector('#target-status');
-            var videoStatus = document.querySelector('#video-status');
+            var errorDetails = document.querySelector('#error-details');
             
             var currentVideo = null;
             var currentVideoType = null;
             var isTargetDetected = false;
             var isSystemReady = false;
             
-            // Detect browser
+            // Detect device info
             var ua = navigator.userAgent;
-            var browserName = 'Desconocido';
-            if (ua.indexOf('Chrome') > -1) browserName = 'Chrome';
-            else if (ua.indexOf('Safari') > -1) browserName = 'Safari';
-            else if (ua.indexOf('Firefox') > -1) browserName = 'Firefox';
-            browserInfo.textContent = browserName + ' (Android ' + (ua.match(/Android ([0-9.]+)/) || ['','?'])[1] + ')';
+            log('UserAgent: ' + ua);
             
             // Check WebGL
             try {
                 var canvas = document.createElement('canvas');
                 var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                webglStatus.textContent = gl ? '✅ Disponible' : '❌ No disponible';
-                webglStatus.style.color = gl ? '#00ff00' : '#ff0000';
-            } catch(e) {
-                webglStatus.textContent = '❌ Error';
-                webglStatus.style.color = '#ff0000';
-            }
-            
-            // Check camera permissions
-            function checkCameraPermission() {
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    navigator.mediaDevices.getUserMedia({ video: true })
-                        .then(function(stream) {
-                            cameraStatus.textContent = '✅ Acceso concedido';
-                            cameraStatus.style.color = '#00ff00';
-                            stream.getTracks().forEach(function(track) { track.stop(); });
-                        })
-                        .catch(function(err) {
-                            cameraStatus.textContent = '❌ ' + err.name;
-                            cameraStatus.style.color = '#ff0000';
-                            status.textContent = 'Error: Activa permisos de cámara en Configuración';
-                        });
+                if (gl) {
+                    var glInfo = {
+                        version: gl.getParameter(gl.VERSION),
+                        vendor: gl.getParameter(gl.VENDOR),
+                        renderer: gl.getParameter(gl.RENDERER)
+                    };
+                    log('✅ WebGL OK: ' + glInfo.renderer);
                 } else {
-                    cameraStatus.textContent = '❌ API no soportada';
-                    cameraStatus.style.color = '#ff0000';
+                    log('❌ WebGL NO disponible');
+                    showError('WebGL no está disponible en este dispositivo');
                 }
+            } catch(e) {
+                log('❌ WebGL Error: ' + e.message);
+                showError('Error al verificar WebGL: ' + e.message);
             }
             
-            checkCameraPermission();
+            // Check camera
+            log('Verificando cámara...');
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                log('✅ API getUserMedia disponible');
+            } else {
+                log('❌ API getUserMedia NO disponible');
+                showError('Tu navegador no soporta acceso a cámara');
+            }
+
+            // Check if targets.mind exists
+            log('Verificando archivo targets.mind...');
+            fetch('./assets/targets.mind')
+                .then(function(response) {
+                    log('✅ targets.mind: ' + response.status + ' - ' + response.statusText);
+                    return response.arrayBuffer();
+                })
+                .then(function(buffer) {
+                    log('✅ targets.mind cargado: ' + buffer.byteLength + ' bytes');
+                })
+                .catch(function(error) {
+                    log('❌ targets.mind ERROR: ' + error.message);
+                    showError('No se encuentra el archivo targets.mind en ./assets/');
+                });
             
-            // Start AR System
+            function showError(msg) {
+                errorDetails.textContent = '❌ ERROR: ' + msg;
+                errorDetails.style.display = 'block';
+            }
+
+            function hideError() {
+                errorDetails.style.display = 'none';
+            }
+            
+            // Wait for A-Frame to be ready
+            sceneEl.addEventListener('loaded', function() {
+                log('✅ A-Frame scene cargado');
+            });
+
+            // Start AR System with timeout
             startButton.addEventListener('click', function() {
-                console.log('Start button clicked');
+                log('🎬 Usuario presionó INICIAR');
                 startButton.disabled = true;
                 startButton.textContent = '⏳ Iniciando...';
                 status.textContent = 'Iniciando sistema AR...';
-                arStatus.textContent = '⏳ Iniciando...';
+                hideError();
                 
-                // Start MindAR
-                sceneEl.systems['mindar-image-system'].start().then(function() {
-                    console.log('MindAR started successfully');
-                    startButton.style.display = 'none';
-                    status.textContent = '✅ Apunta la cámara al marcador';
-                    arStatus.textContent = '✅ Sistema listo';
-                    arStatus.style.color = '#00ff00';
-                    isSystemReady = true;
-                    
-                    // Try to load videos
-                    loadVideos();
-                }).catch(function(error) {
-                    console.error('MindAR start error:', error);
+                // Set a timeout to detect if start hangs
+                var startTimeout = setTimeout(function() {
+                    log('⚠️ TIMEOUT: MindAR no respondió en 15 segundos');
+                    showError('Timeout: MindAR no pudo iniciar. Posibles causas: archivo targets.mind corrupto, incompatibilidad de dispositivo, o problema de red.');
                     startButton.disabled = false;
                     startButton.textContent = '🔄 REINTENTAR';
-                    status.textContent = '❌ Error: ' + error.message;
-                    arStatus.textContent = '❌ Error al iniciar';
-                    arStatus.style.color = '#ff0000';
-                });
+                    status.textContent = '❌ Error de timeout';
+                }, 15000);
+                
+                log('Llamando a mindar-image-system.start()...');
+                
+                // Try to start MindAR
+                try {
+                    var mindARSystem = sceneEl.systems['mindar-image-system'];
+                    
+                    if (!mindARSystem) {
+                        clearTimeout(startTimeout);
+                        log('❌ Sistema mindar-image-system no encontrado');
+                        showError('Sistema MindAR no se inicializó correctamente');
+                        startButton.disabled = false;
+                        startButton.textContent = '🔄 REINTENTAR';
+                        return;
+                    }
+                    
+                    log('Sistema MindAR encontrado, iniciando...');
+                    
+                    mindARSystem.start().then(function() {
+                        clearTimeout(startTimeout);
+                        log('✅ MindAR iniciado exitosamente');
+                        startButton.style.display = 'none';
+                        status.textContent = '✅ Apunta la cámara al marcador';
+                        isSystemReady = true;
+                        
+                        loadVideos();
+                    }).catch(function(error) {
+                        clearTimeout(startTimeout);
+                        log('❌ MindAR error: ' + error.message);
+                        log('Error stack: ' + (error.stack || 'No stack available'));
+                        showError('MindAR falló: ' + error.message);
+                        startButton.disabled = false;
+                        startButton.textContent = '🔄 REINTENTAR';
+                        status.textContent = '❌ Error al iniciar AR';
+                    });
+                } catch(error) {
+                    clearTimeout(startTimeout);
+                    log('❌ Exception al iniciar: ' + error.message);
+                    log('Exception stack: ' + (error.stack || 'No stack available'));
+                    showError('Excepción: ' + error.message);
+                    startButton.disabled = false;
+                    startButton.textContent = '🔄 REINTENTAR';
+                }
             });
             
             // Load videos
             function loadVideos() {
-                videoStatus.textContent = '⏳ Cargando videos...';
-                
-                var videoALoaded = false;
-                var videoBLoaded = false;
+                log('Cargando videos...');
                 
                 videoA.addEventListener('loadedmetadata', function() {
-                    console.log('Video A metadata loaded');
-                    videoALoaded = true;
-                    checkVideosReady();
+                    log('✅ Video A metadata: ' + videoA.duration + 's');
                 });
                 
                 videoB.addEventListener('loadedmetadata', function() {
-                    console.log('Video B metadata loaded');
-                    videoBLoaded = true;
-                    checkVideosReady();
+                    log('✅ Video B metadata: ' + videoB.duration + 's');
                 });
                 
                 videoA.addEventListener('error', function(e) {
-                    console.error('Video A error:', e);
-                    videoStatus.textContent = '⚠️ Video A falló';
+                    log('❌ Video A error: ' + (videoA.error ? videoA.error.code : 'unknown'));
                 });
                 
                 videoB.addEventListener('error', function(e) {
-                    console.error('Video B error:', e);
-                    videoStatus.textContent = '⚠️ Video B falló';
+                    log('❌ Video B error: ' + (videoB.error ? videoB.error.code : 'unknown'));
                 });
                 
-                function checkVideosReady() {
-                    if (videoALoaded && videoBLoaded) {
-                        videoStatus.textContent = '✅ Videos listos';
-                        videoStatus.style.color = '#00ff00';
-                    } else if (videoALoaded || videoBLoaded) {
-                        videoStatus.textContent = '⚠️ 1 video listo';
-                        videoStatus.style.color = '#ffff00';
-                    }
-                }
-                
-                // Force load
                 videoA.load();
                 videoB.load();
             }
@@ -344,30 +402,21 @@
             // Target detection
             sceneEl.addEventListener('targetFound', function(event) {
                 var targetIndex = event.target.getAttribute('mindar-image-target').targetIndex;
-                console.log('Target found:', targetIndex);
+                log('🎯 Target detectado: ' + targetIndex);
                 
                 if (targetIndex === 0) {
                     isTargetDetected = true;
-                    targetStatus.textContent = '✅ Target 0 (Video)';
-                    targetStatus.style.color = '#00ff00';
                     controls.style.display = 'flex';
                     status.textContent = 'Selecciona un video';
-                }
-                
-                if (targetIndex === 1) {
-                    targetStatus.textContent = '✅ Target 1 (3D)';
-                    targetStatus.style.color = '#00ff00';
                 }
             });
             
             sceneEl.addEventListener('targetLost', function(event) {
                 var targetIndex = event.target.getAttribute('mindar-image-target').targetIndex;
-                console.log('Target lost:', targetIndex);
+                log('🔍 Target perdido: ' + targetIndex);
                 
                 if (targetIndex === 0) {
                     isTargetDetected = false;
-                    targetStatus.textContent = '❌ Target perdido';
-                    targetStatus.style.color = '#ff0000';
                     controls.style.display = 'none';
                     status.textContent = 'Apunta al marcador';
                     
@@ -375,15 +424,12 @@
                         currentVideo.pause();
                     }
                 }
-                
-                if (targetIndex === 1) {
-                    targetStatus.textContent = '⚪ Buscando...';
-                    targetStatus.style.color = '#ffffff';
-                }
             });
             
             // Play video function
             function playVideo(type) {
+                log('▶️ Reproduciendo video: ' + type);
+                
                 if (!isSystemReady || !isTargetDetected) {
                     status.textContent = 'Primero apunta al marcador';
                     return;
@@ -411,19 +457,18 @@
                 currentVideo.currentTime = 0;
                 
                 currentVideo.play().then(function() {
+                    log('✅ Video ' + type + ' reproduciendo');
                     status.textContent = '▶️ Video ' + type.toUpperCase();
-                    videoStatus.textContent = '▶️ Reproduciendo ' + type.toUpperCase();
-                    videoStatus.style.color = '#00ff00';
                 }).catch(function(error) {
-                    console.error('Play error:', error);
+                    log('❌ Error play: ' + error.message);
                     status.textContent = '❌ Error al reproducir';
-                    videoStatus.textContent = '❌ Error: ' + error.message;
-                    videoStatus.style.color = '#ff0000';
                 });
             }
             
             buttonA.addEventListener('click', function() { playVideo('a'); });
             buttonB.addEventListener('click', function() { playVideo('b'); });
+            
+            log('✅ Sistema inicializado - Listo para iniciar');
         });
     </script>
   </body>
