@@ -3,10 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>AR App - Android Compatible</title>
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v7.0.0/dist/aframe-extras.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <title>AR App - AR.js Compatible</title>
+    
+    <!-- Usando AR.js en lugar de MindAR para mejor compatibilidad -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+    
     <style>
         body {
             margin: 0;
@@ -50,11 +53,6 @@
             background-color: #45a049;
             transform: translate(-50%, -50%) scale(0.95);
         }
-
-        #start-button:disabled {
-            background-color: #999;
-            cursor: not-allowed;
-        }
         
         #controls {
             position: fixed;
@@ -64,6 +62,8 @@
             z-index: 1000;
             display: none;
             gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         
         .video-button {
@@ -96,52 +96,57 @@
         
         #status {
             position: fixed;
-            top: 80px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 10px;
+            right: 10px;
             z-index: 1000;
             background: rgba(0,0,0,0.8);
             color: white;
             padding: 15px 25px;
             border-radius: 25px;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
-            max-width: 80%;
+            max-width: 40%;
             text-align: center;
         }
 
-        #error-details {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            background: rgba(255,0,0,0.8);
+        .arjs-loader {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .arjs-loader div {
+            text-align: center;
+            font-size: 1.25em;
             color: white;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 12px;
-            max-width: 90%;
-            display: none;
         }
     </style>
   </head>
   
-  <body>
+  <body style="margin: 0; overflow: hidden;">
+    <!-- Loading Screen -->
+    <div class="arjs-loader">
+        <div>Cargando experiencia AR...<br>Por favor espera</div>
+    </div>
+
     <!-- Debug Info Panel -->
     <div id="debug-info">
-        🔍 DIAGNÓSTICO COMPLETO:<br>
-        <div id="debug-log">Iniciando diagnóstico...<br></div>
+        🔍 DIAGNÓSTICO:<br>
+        <div id="debug-log">Iniciando...<br></div>
     </div>
 
     <!-- Status Display -->
-    <div id="status">Presiona el botón para iniciar</div>
-
-    <!-- Error Details -->
-    <div id="error-details"></div>
+    <div id="status">Cargando...</div>
 
     <!-- Start Button -->
-    <button id="start-button">▶️ INICIAR AR</button>
+    <button id="start-button" style="display: none;">▶️ INICIAR VIDEOS</button>
 
     <!-- Control Buttons -->
     <div id="controls">
@@ -149,83 +154,86 @@
         <button id="button-b" class="video-button">VIDEO B</button>
     </div>
     
-    <a-scene 
+    <!-- AR.js Scene con marker-based tracking -->
+    <a-scene
         id="ar-scene"
-        mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 2; autoStart: false; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5"
-        color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights: true, antialias: false, precision: mediump"
-        vr-mode-ui="enabled: false" 
-        device-orientation-permission-ui="enabled: true"
         embedded
-        loading-screen="enabled: false"
-        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
-      
-      <a-assets timeout="30000">
-        <a-asset-item id="animatedLogoModel" src="./assets/logo.glb"></a-asset-item>
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; trackingMethod: best;"
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; precision: mediump;"
+        loading-screen="enabled: false">
         
-        <video 
-            id="video-a" 
-            src="./assets/Reel_BV_01.mp4" 
-            preload="metadata"
-            webkit-playsinline 
-            playsinline
-            muted
-            crossorigin="anonymous">
-        </video>
-        
-        <video 
-            id="video-b" 
-            src="./assets/video.mp4" 
-            preload="metadata"
-            webkit-playsinline 
-            playsinline
-            muted
-            crossorigin="anonymous">
-        </video>
-      </a-assets>
-      
-      <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
-      
-      <!-- 3D Model Entity (Target Index 1) -->
-      <a-entity mindar-image-target="targetIndex: 1">
-        <a-gltf-model 
-            rotation="90 -90 -90" 
-            position="0 0 0" 
-            scale="7 7 7" 
-            src="#animatedLogoModel" 
-            animation-mixer>
-        </a-gltf-model>
-      </a-entity>
-      
-      <!-- Video Display (Target Index 0) -->
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-video 
-          id="video-display"
-          src="#video-a" 
-          width="3" 
-          height="1.5" 
-          position="0 0 0" 
-          rotation="0 0 0"
-          visible="false">
-        </a-video>
-      </a-entity>
+        <a-assets>
+            <a-asset-item id="logoModel" src="./assets/logo.glb"></a-asset-item>
+            
+            <video 
+                id="video-a" 
+                src="./assets/Reel_BV_01.mp4" 
+                preload="auto"
+                webkit-playsinline 
+                playsinline
+                muted
+                loop
+                crossorigin="anonymous">
+            </video>
+            
+            <video 
+                id="video-b" 
+                src="./assets/video.mp4" 
+                preload="auto"
+                webkit-playsinline 
+                playsinline
+                muted
+                loop
+                crossorigin="anonymous">
+            </video>
+        </a-assets>
+
+        <a-camera gps-camera rotation-reader></a-camera>
+
+        <!-- Marker 1: Hiro pattern (para modelo 3D) -->
+        <a-marker preset="hiro" id="marker-hiro">
+            <a-entity
+                position="0 0 0"
+                scale="0.5 0.5 0.5"
+                rotation="-90 0 0"
+                gltf-model="#logoModel"
+                animation-mixer>
+            </a-entity>
+        </a-marker>
+
+        <!-- Marker 2: Kanji pattern (para video) -->
+        <a-marker preset="kanji" id="marker-kanji">
+            <a-video
+                id="video-display"
+                src="#video-a"
+                width="2"
+                height="1.5"
+                position="0 0.5 0"
+                rotation="-90 0 0"
+                visible="true">
+            </a-video>
+        </a-marker>
+
+        <!-- Marker 3: Custom pattern (alternativa) -->
+        <a-marker type="pattern" url="./assets/pattern-marker.patt" id="marker-custom">
+            <a-video
+                id="video-display-alt"
+                src="#video-a"
+                width="2"
+                height="1.5"
+                position="0 0.5 0"
+                rotation="-90 0 0"
+                visible="true">
+            </a-video>
+        </a-marker>
+
+        <a-entity camera></a-entity>
     </a-scene>
       
     <script>
-        // Polyfill para Promise.allSettled
-        if (!Promise.allSettled) {
-            Promise.allSettled = function(promises) {
-                return Promise.all(promises.map(function(p) {
-                    return Promise.resolve(p).then(
-                        function(value) { return { status: 'fulfilled', value: value }; },
-                        function(reason) { return { status: 'rejected', reason: reason }; }
-                    );
-                }));
-            };
-        }
-
         // Logger helper
-        var debugLog = document.querySelector('#debug-log');
+        var debugLog = document.getElementById('debug-log');
         function log(message) {
             console.log(message);
             var timestamp = new Date().toLocaleTimeString();
@@ -233,242 +241,207 @@
             debugLog.scrollTop = debugLog.scrollHeight;
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            log('DOM Cargado');
+        window.addEventListener('load', function() {
+            log('✅ Página cargada');
             
-            var sceneEl = document.querySelector('a-scene');
-            var videoA = document.querySelector('#video-a');
-            var videoB = document.querySelector('#video-b');
-            var videoDisplay = document.querySelector('#video-display');
-            var startButton = document.querySelector('#start-button');
-            var buttonA = document.querySelector('#button-a');
-            var buttonB = document.querySelector('#button-b');
-            var status = document.querySelector('#status');
-            var controls = document.querySelector('#controls');
-            var errorDetails = document.querySelector('#error-details');
+            var sceneEl = document.getElementById('ar-scene');
+            var videoA = document.getElementById('video-a');
+            var videoB = document.getElementById('video-b');
+            var videoDisplay = document.getElementById('video-display');
+            var videoDisplayAlt = document.getElementById('video-display-alt');
+            var startButton = document.getElementById('start-button');
+            var buttonA = document.getElementById('button-a');
+            var buttonB = document.getElementById('button-b');
+            var status = document.getElementById('status');
+            var controls = document.getElementById('controls');
             
             var currentVideo = null;
-            var currentVideoType = null;
-            var isTargetDetected = false;
-            var isSystemReady = false;
+            var currentVideoType = 'a';
+            var markerDetected = false;
+            var videosReady = false;
             
-            // Detect device info
-            var ua = navigator.userAgent;
-            log('UserAgent: ' + ua);
-            
+            // Hide loading screen when AR is ready
+            sceneEl.addEventListener('loaded', function() {
+                log('✅ A-Frame cargado');
+            });
+
+            sceneEl.addEventListener('arjs-video-loaded', function() {
+                log('✅ Cámara iniciada');
+                document.querySelector('.arjs-loader').style.display = 'none';
+                status.textContent = '📷 Apunta a un marcador AR';
+                startButton.style.display = 'block';
+            });
+
             // Check WebGL
             try {
                 var canvas = document.createElement('canvas');
                 var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
                 if (gl) {
-                    var glInfo = {
-                        version: gl.getParameter(gl.VERSION),
-                        vendor: gl.getParameter(gl.VENDOR),
-                        renderer: gl.getParameter(gl.RENDERER)
-                    };
-                    log('✅ WebGL OK: ' + glInfo.renderer);
+                    log('✅ WebGL disponible');
                 } else {
-                    log('❌ WebGL NO disponible');
-                    showError('WebGL no está disponible en este dispositivo');
+                    log('❌ WebGL no disponible');
                 }
             } catch(e) {
-                log('❌ WebGL Error: ' + e.message);
-                showError('Error al verificar WebGL: ' + e.message);
-            }
-            
-            // Check camera
-            log('Verificando cámara...');
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                log('✅ API getUserMedia disponible');
-            } else {
-                log('❌ API getUserMedia NO disponible');
-                showError('Tu navegador no soporta acceso a cámara');
+                log('❌ WebGL error: ' + e.message);
             }
 
-            // Check if targets.mind exists
-            log('Verificando archivo targets.mind...');
-            fetch('./assets/targets.mind')
-                .then(function(response) {
-                    log('✅ targets.mind: ' + response.status + ' - ' + response.statusText);
-                    return response.arrayBuffer();
-                })
-                .then(function(buffer) {
-                    log('✅ targets.mind cargado: ' + buffer.byteLength + ' bytes');
-                })
-                .catch(function(error) {
-                    log('❌ targets.mind ERROR: ' + error.message);
-                    showError('No se encuentra el archivo targets.mind en ./assets/');
-                });
-            
-            function showError(msg) {
-                errorDetails.textContent = '❌ ERROR: ' + msg;
-                errorDetails.style.display = 'block';
-            }
-
-            function hideError() {
-                errorDetails.style.display = 'none';
-            }
-            
-            // Wait for A-Frame to be ready
-            sceneEl.addEventListener('loaded', function() {
-                log('✅ A-Frame scene cargado');
-            });
-
-            // Start AR System with timeout
+            // Initialize videos on button click
             startButton.addEventListener('click', function() {
-                log('🎬 Usuario presionó INICIAR');
-                startButton.disabled = true;
-                startButton.textContent = '⏳ Iniciando...';
-                status.textContent = 'Iniciando sistema AR...';
-                hideError();
+                log('🎬 Inicializando videos...');
+                startButton.style.display = 'none';
                 
-                // Set a timeout to detect if start hangs
-                var startTimeout = setTimeout(function() {
-                    log('⚠️ TIMEOUT: MindAR no respondió en 15 segundos');
-                    showError('Timeout: MindAR no pudo iniciar. Posibles causas: archivo targets.mind corrupto, incompatibilidad de dispositivo, o problema de red.');
-                    startButton.disabled = false;
-                    startButton.textContent = '🔄 REINTENTAR';
-                    status.textContent = '❌ Error de timeout';
-                }, 15000);
-                
-                log('Llamando a mindar-image-system.start()...');
-                
-                // Try to start MindAR
-                try {
-                    var mindARSystem = sceneEl.systems['mindar-image-system'];
-                    
-                    if (!mindARSystem) {
-                        clearTimeout(startTimeout);
-                        log('❌ Sistema mindar-image-system no encontrado');
-                        showError('Sistema MindAR no se inicializó correctamente');
-                        startButton.disabled = false;
-                        startButton.textContent = '🔄 REINTENTAR';
-                        return;
-                    }
-                    
-                    log('Sistema MindAR encontrado, iniciando...');
-                    
-                    mindARSystem.start().then(function() {
-                        clearTimeout(startTimeout);
-                        log('✅ MindAR iniciado exitosamente');
-                        startButton.style.display = 'none';
-                        status.textContent = '✅ Apunta la cámara al marcador';
-                        isSystemReady = true;
-                        
-                        loadVideos();
-                    }).catch(function(error) {
-                        clearTimeout(startTimeout);
-                        log('❌ MindAR error: ' + error.message);
-                        log('Error stack: ' + (error.stack || 'No stack available'));
-                        showError('MindAR falló: ' + error.message);
-                        startButton.disabled = false;
-                        startButton.textContent = '🔄 REINTENTAR';
-                        status.textContent = '❌ Error al iniciar AR';
-                    });
-                } catch(error) {
-                    clearTimeout(startTimeout);
-                    log('❌ Exception al iniciar: ' + error.message);
-                    log('Exception stack: ' + (error.stack || 'No stack available'));
-                    showError('Excepción: ' + error.message);
-                    startButton.disabled = false;
-                    startButton.textContent = '🔄 REINTENTAR';
-                }
-            });
-            
-            // Load videos
-            function loadVideos() {
-                log('Cargando videos...');
-                
-                videoA.addEventListener('loadedmetadata', function() {
-                    log('✅ Video A metadata: ' + videoA.duration + 's');
-                });
-                
-                videoB.addEventListener('loadedmetadata', function() {
-                    log('✅ Video B metadata: ' + videoB.duration + 's');
-                });
-                
-                videoA.addEventListener('error', function(e) {
-                    log('❌ Video A error: ' + (videoA.error ? videoA.error.code : 'unknown'));
-                });
-                
-                videoB.addEventListener('error', function(e) {
-                    log('❌ Video B error: ' + (videoB.error ? videoB.error.code : 'unknown'));
-                });
-                
+                // Attempt to load and play videos silently
                 videoA.load();
                 videoB.load();
-            }
-            
-            // Target detection
-            sceneEl.addEventListener('targetFound', function(event) {
-                var targetIndex = event.target.getAttribute('mindar-image-target').targetIndex;
-                log('🎯 Target detectado: ' + targetIndex);
                 
-                if (targetIndex === 0) {
-                    isTargetDetected = true;
-                    controls.style.display = 'flex';
-                    status.textContent = 'Selecciona un video';
+                // Try to play and pause to unlock autoplay
+                var playPromiseA = videoA.play();
+                if (playPromiseA !== undefined) {
+                    playPromiseA.then(function() {
+                        log('✅ Video A desbloqueado');
+                        videoA.pause();
+                        videoA.currentTime = 0;
+                    }).catch(function(error) {
+                        log('⚠️ Video A: ' + error.message);
+                    });
+                }
+                
+                var playPromiseB = videoB.play();
+                if (playPromiseB !== undefined) {
+                    playPromiseB.then(function() {
+                        log('✅ Video B desbloqueado');
+                        videoB.pause();
+                        videoB.currentTime = 0;
+                    }).catch(function(error) {
+                        log('⚠️ Video B: ' + error.message);
+                    });
+                }
+                
+                videosReady = true;
+                status.textContent = '✅ Videos listos - Apunta al marcador';
+            });
+
+            // Marker detection for Hiro (3D model)
+            var markerHiro = document.getElementById('marker-hiro');
+            markerHiro.addEventListener('markerFound', function() {
+                log('🎯 Marcador HIRO detectado (3D)');
+                status.textContent = '✅ Modelo 3D visible';
+            });
+
+            markerHiro.addEventListener('markerLost', function() {
+                log('🔍 Marcador HIRO perdido');
+                status.textContent = '📷 Buscar marcador...';
+            });
+
+            // Marker detection for Kanji (Video)
+            var markerKanji = document.getElementById('marker-kanji');
+            markerKanji.addEventListener('markerFound', function() {
+                log('🎯 Marcador KANJI detectado (VIDEO)');
+                markerDetected = true;
+                controls.style.display = 'flex';
+                status.textContent = '✅ Marcador detectado';
+                
+                if (videosReady && currentVideo) {
+                    currentVideo.play().catch(function(e) {
+                        log('⚠️ Error play: ' + e.message);
+                    });
                 }
             });
-            
-            sceneEl.addEventListener('targetLost', function(event) {
-                var targetIndex = event.target.getAttribute('mindar-image-target').targetIndex;
-                log('🔍 Target perdido: ' + targetIndex);
-                
-                if (targetIndex === 0) {
-                    isTargetDetected = false;
-                    controls.style.display = 'none';
-                    status.textContent = 'Apunta al marcador';
-                    
-                    if (currentVideo) {
-                        currentVideo.pause();
-                    }
-                }
-            });
-            
-            // Play video function
-            function playVideo(type) {
-                log('▶️ Reproduciendo video: ' + type);
-                
-                if (!isSystemReady || !isTargetDetected) {
-                    status.textContent = 'Primero apunta al marcador';
-                    return;
-                }
+
+            markerKanji.addEventListener('markerLost', function() {
+                log('🔍 Marcador KANJI perdido');
+                markerDetected = false;
+                controls.style.display = 'none';
                 
                 if (currentVideo) {
                     currentVideo.pause();
                 }
+            });
+
+            // Custom marker (alternative)
+            var markerCustom = document.getElementById('marker-custom');
+            markerCustom.addEventListener('markerFound', function() {
+                log('🎯 Marcador CUSTOM detectado');
+                markerDetected = true;
+                controls.style.display = 'flex';
+                status.textContent = '✅ Marcador detectado';
+            });
+
+            markerCustom.addEventListener('markerLost', function() {
+                log('🔍 Marcador CUSTOM perdido');
+                markerDetected = false;
+                controls.style.display = 'none';
+            });
+
+            // Play video function
+            function playVideo(type) {
+                log('▶️ Cambiando a video: ' + type);
                 
+                if (!videosReady) {
+                    log('⚠️ Videos no listos');
+                    status.textContent = 'Primero presiona INICIAR';
+                    startButton.style.display = 'block';
+                    return;
+                }
+
+                if (!markerDetected) {
+                    log('⚠️ Marcador no detectado');
+                    status.textContent = 'Apunta al marcador primero';
+                    return;
+                }
+
+                // Stop current video
+                if (currentVideo) {
+                    currentVideo.pause();
+                    currentVideo.currentTime = 0;
+                }
+
+                // Set new video
                 if (type === 'a') {
                     currentVideo = videoA;
                     currentVideoType = 'a';
                     videoDisplay.setAttribute('src', '#video-a');
+                    videoDisplayAlt.setAttribute('src', '#video-a');
                     buttonA.classList.add('selected');
                     buttonB.classList.remove('selected');
                 } else {
                     currentVideo = videoB;
                     currentVideoType = 'b';
                     videoDisplay.setAttribute('src', '#video-b');
+                    videoDisplayAlt.setAttribute('src', '#video-b');
                     buttonA.classList.remove('selected');
                     buttonB.classList.add('selected');
                 }
-                
-                videoDisplay.setAttribute('visible', 'true');
-                currentVideo.currentTime = 0;
-                
+
+                // Play video
                 currentVideo.play().then(function() {
-                    log('✅ Video ' + type + ' reproduciendo');
+                    log('✅ Video ' + type.toUpperCase() + ' reproduciendo');
                     status.textContent = '▶️ Video ' + type.toUpperCase();
                 }).catch(function(error) {
-                    log('❌ Error play: ' + error.message);
-                    status.textContent = '❌ Error al reproducir';
+                    log('❌ Error al reproducir: ' + error.message);
+                    status.textContent = 'Error: ' + error.message;
                 });
             }
-            
+
+            // Button handlers
             buttonA.addEventListener('click', function() { playVideo('a'); });
             buttonB.addEventListener('click', function() { playVideo('b'); });
-            
-            log('✅ Sistema inicializado - Listo para iniciar');
+
+            // Video error handling
+            videoA.addEventListener('error', function(e) {
+                log('❌ Video A error code: ' + (videoA.error ? videoA.error.code : 'unknown'));
+            });
+
+            videoB.addEventListener('error', function(e) {
+                log('❌ Video B error code: ' + (videoB.error ? videoB.error.code : 'unknown'));
+            });
+
+            // Set default video
+            currentVideo = videoA;
+            buttonA.classList.add('selected');
+
+            log('✅ Sistema listo');
+            status.textContent = 'Esperando cámara...';
         });
     </script>
   </body>
