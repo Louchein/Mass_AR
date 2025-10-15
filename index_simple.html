@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mind AR - Two Targets</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-three.prod.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    #instructions {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 15px 25px;
+      border-radius: 10px;
+      z-index: 100;
+      text-align: center;
+      max-width: 80%;
+    }
+    #instructions h3 {
+      margin: 0 0 10px 0;
+    }
+    #instructions p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+    .status {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="instructions">
+      <h3>🎯 Mind AR - Demo</h3>
+      <p>Este demo necesita un archivo .mind previamente compilado</p>
+      <p>Genera tus targets en: <a href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" style="color: #4CAF50;">Mind AR Compiler</a></p>
+      <p>Apunta la cámara a tus imágenes target para ver los videos</p>
+    </div>
+    <div class="status" id="status">Inicializando...</div>
+  </div>
+
+  <script type="module">
+    const statusEl = document.getElementById('status');
+
+    // Configuración: Aquí debes poner la URL de tu archivo .mind
+    // Para generar el archivo .mind, visita: https://hiukim.github.io/mind-ar-js-doc/tools/compile
+    // Sube 2 imágenes target y descarga el archivo targets.mind
+    const mindFileURL = './assets/targets.mind'; // Cambia esto por la URL de tu archivo .mind
+
+    // URLs de videos de ejemplo (puedes cambiarlas por las tuyas)
+    const video1URL = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+    const video2URL = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
+
+    // Inicializar Mind AR
+    const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+      container: document.getElementById('container'),
+      imageTargetSrc: mindFileURL,
+      maxTrack: 2 // Permitir rastrear hasta 2 targets simultáneamente
+    });
+
+    const { renderer, scene, camera } = mindarThree;
+
+    // Crear video 1 para target 0
+    const video1 = document.createElement('video');
+    video1.src = video1URL;
+    video1.loop = true;
+    video1.muted = true;
+    video1.crossOrigin = 'anonymous';
+
+    const texture1 = new THREE.VideoTexture(video1);
+    const geometry1 = new THREE.PlaneGeometry(1, 1);
+    const material1 = new THREE.MeshBasicMaterial({ map: texture1 });
+    const plane1 = new THREE.Mesh(geometry1, material1);
+
+    const anchor1 = mindarThree.addAnchor(0); // Target 0
+    anchor1.group.add(plane1);
+
+    // Crear video 2 para target 1
+    const video2 = document.createElement('video');
+    video2.src = video2URL;
+    video2.loop = true;
+    video2.muted = true;
+    video2.crossOrigin = 'anonymous';
+
+    const texture2 = new THREE.VideoTexture(video2);
+    const geometry2 = new THREE.PlaneGeometry(1, 1);
+    const material2 = new THREE.MeshBasicMaterial({ map: texture2 });
+    const plane2 = new THREE.Mesh(geometry2, material2);
+
+    const anchor2 = mindarThree.addAnchor(1); // Target 1
+    anchor2.group.add(plane2);
+
+    // Eventos para target 0
+    anchor1.onTargetFound = () => {
+      statusEl.textContent = '✅ Target 1 detectado';
+      video1.play();
+    };
+    anchor1.onTargetLost = () => {
+      statusEl.textContent = '❌ Target 1 perdido';
+      video1.pause();
+    };
+
+    // Eventos para target 1
+    anchor2.onTargetFound = () => {
+      statusEl.textContent = '✅ Target 2 detectado';
+      video2.play();
+    };
+    anchor2.onTargetLost = () => {
+      statusEl.textContent = '❌ Target 2 perdido';
+      video2.pause();
+    };
+
+    // Iniciar Mind AR
+    const start = async () => {
+      try {
+        statusEl.textContent = 'Iniciando cámara...';
+        await mindarThree.start();
+        statusEl.textContent = '📷 Cámara lista - Apunta a un target';
+        
+        renderer.setAnimationLoop(() => {
+          renderer.render(scene, camera);
+        });
+      } catch (error) {
+        console.error('Error:', error);
+        statusEl.textContent = '❌ Error: ' + error.message;
+        statusEl.style.background = 'rgba(255, 0, 0, 0.8)';
+      }
+    };
+
+    start();
+  </script>
+</body>
+</html>
