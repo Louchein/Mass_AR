@@ -4,38 +4,52 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mind AR - Two Targets</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-three.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe-master.min.js"></script>
   <style>
     body {
       margin: 0;
       overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
-    #container {
-      width: 100vw;
-      height: 100vh;
-      position: relative;
     }
     #instructions {
       position: absolute;
-      top: 20px;
+      top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.8);
       color: white;
-      padding: 15px 25px;
+      padding: 15px 20px;
       border-radius: 10px;
-      z-index: 100;
+      z-index: 999;
       text-align: center;
-      max-width: 80%;
+      max-width: 90%;
+      font-family: Arial, sans-serif;
     }
     #instructions h3 {
       margin: 0 0 10px 0;
+      font-size: 18px;
     }
     #instructions p {
       margin: 5px 0;
+      font-size: 13px;
+    }
+    #instructions a {
+      color: #4CAF50;
+      text-decoration: none;
+    }
+    #instructions button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
       font-size: 14px;
+    }
+    #instructions button:hover {
+      background: #45a049;
     }
     .status {
       position: absolute;
@@ -46,110 +60,128 @@
       color: white;
       padding: 10px 20px;
       border-radius: 5px;
-      z-index: 100;
+      z-index: 999;
+      font-family: Arial, sans-serif;
     }
   </style>
 </head>
 <body>
-  <div id="container">
-    <div id="instructions">
-      <h3>🎯 Mind AR - Demo</h3>
-      <p>Este demo necesita un archivo .mind previamente compilado</p>
-      <p>Genera tus targets en: <a href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" style="color: #4CAF50;">Mind AR Compiler</a></p>
-      <p>Apunta la cámara a tus imágenes target para ver los videos</p>
-    </div>
-    <div class="status" id="status">Inicializando...</div>
+  <div id="instructions">
+    <h3>🎯 Mind AR - Demo con 2 Targets</h3>
+    <p><strong>Usando archivo:</strong> ./assets/targets.mind</p>
+    <p>Apunta la cámara a tus imágenes target</p>
+    <p>Cada target reproducirá un video diferente</p>
+    <button onclick="document.getElementById('instructions').style.display='none'">Cerrar</button>
   </div>
 
-  <script type="module">
+  <div class="status" id="status">Esperando inicialización...</div>
+
+  <a-scene
+    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+      <video id="video1" 
+        src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+        preload="auto" 
+        loop="true" 
+        crossorigin="anonymous"
+        playsinline
+        webkit-playsinline>
+      </video>
+      
+      <video id="video2" 
+        src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
+        preload="auto" 
+        loop="true" 
+        crossorigin="anonymous"
+        playsinline
+        webkit-playsinline>
+      </video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- Target 0 - Video 1 -->
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-video 
+        src="#video1" 
+        width="1" 
+        height="0.552"
+        position="0 0 0"
+        rotation="0 0 0">
+      </a-video>
+    </a-entity>
+
+    <!-- Target 1 - Video 2 -->
+    <a-entity mindar-image-target="targetIndex: 1">
+      <a-video 
+        src="#video2" 
+        width="1" 
+        height="0.552"
+        position="0 0 0"
+        rotation="0 0 0">
+      </a-video>
+    </a-entity>
+  </a-scene>
+
+  <script>
     const statusEl = document.getElementById('status');
+    const sceneEl = document.querySelector('a-scene');
+    const video1 = document.getElementById('video1');
+    const video2 = document.getElementById('video2');
 
-    // Configuración: Aquí debes poner la URL de tu archivo .mind
-    // Para generar el archivo .mind, visita: https://hiukim.github.io/mind-ar-js-doc/tools/compile
-    // Sube 2 imágenes target y descarga el archivo targets.mind
-    const mindFileURL = './assets/targets.mind'; // Cambia esto por la URL de tu archivo .mind
-
-    // URLs de videos de ejemplo (puedes cambiarlas por las tuyas)
-    const video1URL = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-    const video2URL = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4';
-
-    // Inicializar Mind AR
-    const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-      container: document.getElementById('container'),
-      imageTargetSrc: mindFileURL,
-      maxTrack: 2 // Permitir rastrear hasta 2 targets simultáneamente
-    });
-
-    const { renderer, scene, camera } = mindarThree;
-
-    // Crear video 1 para target 0
-    const video1 = document.createElement('video');
-    video1.src = video1URL;
-    video1.loop = true;
-    video1.muted = true;
-    video1.crossOrigin = 'anonymous';
-
-    const texture1 = new THREE.VideoTexture(video1);
-    const geometry1 = new THREE.PlaneGeometry(1, 1);
-    const material1 = new THREE.MeshBasicMaterial({ map: texture1 });
-    const plane1 = new THREE.Mesh(geometry1, material1);
-
-    const anchor1 = mindarThree.addAnchor(0); // Target 0
-    anchor1.group.add(plane1);
-
-    // Crear video 2 para target 1
-    const video2 = document.createElement('video');
-    video2.src = video2URL;
-    video2.loop = true;
-    video2.muted = true;
-    video2.crossOrigin = 'anonymous';
-
-    const texture2 = new THREE.VideoTexture(video2);
-    const geometry2 = new THREE.PlaneGeometry(1, 1);
-    const material2 = new THREE.MeshBasicMaterial({ map: texture2 });
-    const plane2 = new THREE.Mesh(geometry2, material2);
-
-    const anchor2 = mindarThree.addAnchor(1); // Target 1
-    anchor2.group.add(plane2);
-
-    // Eventos para target 0
-    anchor1.onTargetFound = () => {
-      statusEl.textContent = '✅ Target 1 detectado';
-      video1.play();
-    };
-    anchor1.onTargetLost = () => {
-      statusEl.textContent = '❌ Target 1 perdido';
-      video1.pause();
-    };
-
-    // Eventos para target 1
-    anchor2.onTargetFound = () => {
-      statusEl.textContent = '✅ Target 2 detectado';
-      video2.play();
-    };
-    anchor2.onTargetLost = () => {
-      statusEl.textContent = '❌ Target 2 perdido';
-      video2.pause();
-    };
-
-    // Iniciar Mind AR
-    const start = async () => {
-      try {
-        statusEl.textContent = 'Iniciando cámara...';
-        await mindarThree.start();
-        statusEl.textContent = '📷 Cámara lista - Apunta a un target';
-        
-        renderer.setAnimationLoop(() => {
-          renderer.render(scene, camera);
-        });
-      } catch (error) {
-        console.error('Error:', error);
+    // Esperar a que la escena esté lista
+    sceneEl.addEventListener('loaded', function() {
+      statusEl.textContent = 'Escena cargada, iniciando AR...';
+      
+      const arSystem = sceneEl.systems["mindar-image-system"];
+      
+      // Iniciar AR
+      arSystem.start().then(() => {
+        statusEl.textContent = '📷 Cámara activa - Apunta a los targets';
+        console.log("Mind AR iniciado correctamente");
+      }).catch((error) => {
+        console.error("Error al iniciar:", error);
         statusEl.textContent = '❌ Error: ' + error.message;
         statusEl.style.background = 'rgba(255, 0, 0, 0.8)';
-      }
-    };
+      });
+    });
 
-    start();
+    // Eventos para target 0 (video 1)
+    const target0 = document.querySelector('[mindar-image-target="targetIndex: 0"]');
+    target0.addEventListener('targetFound', event => {
+      console.log("Target 0 encontrado");
+      statusEl.textContent = '✅ Target 1 detectado (BigBuckBunny)';
+      video1.play();
+    });
+    target0.addEventListener('targetLost', event => {
+      console.log("Target 0 perdido");
+      statusEl.textContent = '❌ Target 1 perdido';
+      video1.pause();
+    });
+
+    // Eventos para target 1 (video 2)
+    const target1 = document.querySelector('[mindar-image-target="targetIndex: 1"]');
+    target1.addEventListener('targetFound', event => {
+      console.log("Target 1 encontrado");
+      statusEl.textContent = '✅ Target 2 detectado (ElephantsDream)';
+      video2.play();
+    });
+    target1.addEventListener('targetLost', event => {
+      console.log("Target 1 perdido");
+      statusEl.textContent = '❌ Target 2 perdido';
+      video2.pause();
+    });
+
+    // Manejo de errores de cámara
+    window.addEventListener('arError', (event) => {
+      console.error('AR Error:', event);
+      statusEl.textContent = '❌ Error de AR';
+    });
   </script>
 </body>
 </html>
