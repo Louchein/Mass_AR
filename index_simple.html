@@ -4,102 +4,77 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mind AR - Two Targets</title>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe-master.min.js"></script>
   <style>
     body {
       margin: 0;
       overflow: hidden;
-    }
-    #instructions {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 15px 20px;
-      border-radius: 10px;
-      z-index: 999;
-      text-align: center;
-      max-width: 90%;
       font-family: Arial, sans-serif;
     }
-    #instructions h3 {
-      margin: 0 0 10px 0;
-      font-size: 18px;
-    }
-    #instructions p {
-      margin: 5px 0;
-      font-size: 13px;
-    }
-    #instructions a {
-      color: #4CAF50;
-      text-decoration: none;
-    }
-    #instructions button {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-top: 10px;
-      font-size: 14px;
-    }
-    #instructions button:hover {
-      background: #45a049;
-    }
-    .status {
-      position: absolute;
-      bottom: 20px;
+    
+    #status {
+      position: fixed;
+      top: 20px;
       left: 50%;
       transform: translateX(-50%);
+      z-index: 1000;
       background: rgba(0, 0, 0, 0.7);
       color: white;
-      padding: 10px 20px;
+      padding: 15px 25px;
+      border-radius: 10px;
+      font-size: 16px;
+      text-align: center;
+      max-width: 80%;
+    }
+
+    #debug-info {
+      position: fixed;
+      bottom: 20px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      z-index: 1000;
+      font-family: monospace;
+      font-size: 11px;
       border-radius: 5px;
-      z-index: 999;
-      font-family: Arial, sans-serif;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <div id="instructions">
-    <h3>🎯 Mind AR - Demo con 2 Targets</h3>
-    <p><strong>Usando archivo:</strong> ./assets/targets.mind</p>
-    <p>Apunta la cámara a tus imágenes target</p>
-    <p>Cada target reproducirá un video diferente</p>
-    <button onclick="document.getElementById('instructions').style.display='none'">Cerrar</button>
-  </div>
+  <div id="status">Apunta la cámara a tus targets</div>
+  <div id="debug-info"></div>
 
-  <div class="status" id="status">Esperando inicialización...</div>
-
-  <a-scene
-    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;"
-    color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights"
-    vr-mode-ui="enabled: false"
+  <a-scene 
+    mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 2; autoStart: true" 
+    color-space="sRGB" 
+    renderer="colorManagement: true, physicallyCorrectLights" 
+    vr-mode-ui="enabled: false" 
     device-orientation-permission-ui="enabled: false">
-
+    
     <a-assets>
-      <video id="video1" 
-        src="https://pub-7144edff5fe447c598bf93723e3a19d2.r2.dev/Domus_compressed.mp4"
+      <!-- Video 1 para Target 0 -->
+      <video 
+        id="video1" 
+        src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" 
         preload="auto" 
-        loop="true" 
-        crossorigin="anonymous"
+        webkit-playsinline 
         playsinline
-        webkit-playsinline>
+        loop
+        crossorigin="anonymous">
       </video>
       
-      <video id="video2" 
-        src="https://pub-7144edff5fe447c598bf93723e3a19d2.r2.dev/Turismo_02_cmprsd.mp4"
+      <!-- Video 2 para Target 1 -->
+      <video 
+        id="video2" 
+        src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4" 
         preload="auto" 
-        loop="true" 
-        crossorigin="anonymous"
+        webkit-playsinline 
         playsinline
-        webkit-playsinline>
+        loop
+        crossorigin="anonymous">
       </video>
     </a-assets>
 
@@ -108,10 +83,11 @@
     <!-- Target 0 - Video 1 -->
     <a-entity mindar-image-target="targetIndex: 0">
       <a-video 
+        id="video-display-1"
         src="#video1" 
         width="1" 
-        height="0.552"
-        position="0 0 0"
+        height="0.552" 
+        position="0 0 0" 
         rotation="0 0 0">
       </a-video>
     </a-entity>
@@ -119,68 +95,192 @@
     <!-- Target 1 - Video 2 -->
     <a-entity mindar-image-target="targetIndex: 1">
       <a-video 
+        id="video-display-2"
         src="#video2" 
         width="1" 
-        height="0.552"
-        position="0 0 0"
+        height="0.552" 
+        position="0 0 0" 
         rotation="0 0 0">
       </a-video>
     </a-entity>
   </a-scene>
 
   <script>
-    const statusEl = document.getElementById('status');
-    const sceneEl = document.querySelector('a-scene');
-    const video1 = document.getElementById('video1');
-    const video2 = document.getElementById('video2');
+    document.addEventListener('DOMContentLoaded', () => {
+      const sceneEl = document.querySelector('a-scene');
+      const video1 = document.querySelector('#video1');
+      const video2 = document.querySelector('#video2');
+      const status = document.querySelector('#status');
+      const debugInfo = document.querySelector('#debug-info');
+      
+      let isVideoSystemReady = false;
+      let target0Detected = false;
+      let target1Detected = false;
 
-    // Esperar a que la escena esté lista
-    sceneEl.addEventListener('loaded', function() {
-      statusEl.textContent = 'Escena cargada, iniciando AR...';
-      
-      const arSystem = sceneEl.systems["mindar-image-system"];
-      
-      // Iniciar AR
-      arSystem.start().then(() => {
-        statusEl.textContent = '📷 Cámara activa - Apunta a los targets';
-        console.log("Mind AR iniciado correctamente");
-      }).catch((error) => {
-        console.error("Error al iniciar:", error);
-        statusEl.textContent = '❌ Error: ' + error.message;
-        statusEl.style.background = 'rgba(255, 0, 0, 0.8)';
+      // Función para actualizar debug info
+      function updateDebug() {
+        if (debugInfo) {
+          debugInfo.innerHTML = `
+            System Ready: ${isVideoSystemReady}<br>
+            Target 0: ${target0Detected ? 'Detected' : 'Lost'}<br>
+            Target 1: ${target1Detected ? 'Detected' : 'Lost'}<br>
+            Video 1 State: ${video1.paused ? 'Paused' : 'Playing'}<br>
+            Video 2 State: ${video2.paused ? 'Paused' : 'Playing'}
+          `;
+        }
+      }
+
+      // Verificar carga de videos
+      function checkVideoLoad(video, name) {
+        return new Promise((resolve, reject) => {
+          console.log(`Checking ${name}:`, video.src);
+          
+          if (video.readyState >= 3) {
+            console.log(`${name} already loaded`);
+            resolve();
+          } else {
+            const onLoad = () => {
+              console.log(`${name} loaded successfully`);
+              resolve();
+            };
+            
+            const onError = (error) => {
+              console.error(`${name} load error:`, error);
+              reject(error);
+            };
+            
+            video.addEventListener('canplay', onLoad, { once: true });
+            video.addEventListener('loadeddata', onLoad, { once: true });
+            video.addEventListener('error', onError, { once: true });
+            
+            video.load();
+          }
+        });
+      }
+
+      // Inicializar sistema de videos
+      function initializeVideoSystem() {
+        console.log('Initializing video system...');
+        status.textContent = 'Cargando videos...';
+        
+        Promise.allSettled([
+          checkVideoLoad(video1, 'Video 1'),
+          checkVideoLoad(video2, 'Video 2')
+        ]).then((results) => {
+          console.log('Video loading results:', results);
+          
+          const video1OK = results[0].status === 'fulfilled';
+          const video2OK = results[1].status === 'fulfilled';
+          
+          if (!video1OK && !video2OK) {
+            console.error('No videos could be loaded');
+            status.textContent = '❌ Error al cargar videos';
+            return;
+          }
+          
+          if (!video1OK || !video2OK) {
+            console.warn('One video failed to load');
+            status.textContent = '⚠️ Un video falló al cargar';
+          }
+          
+          // Intentar desbloquear videos para reproducción
+          return Promise.all([
+            video1.play().then(() => video1.pause()).catch(e => console.log('Video 1 unlock:', e)),
+            video2.play().then(() => video2.pause()).catch(e => console.log('Video 2 unlock:', e))
+          ]);
+        }).then(() => {
+          console.log('Video system ready');
+          isVideoSystemReady = true;
+          status.textContent = '✅ Videos listos - Apunta a tus targets';
+          updateDebug();
+        }).catch((error) => {
+          console.error('Video system initialization failed:', error);
+          status.textContent = '❌ Error al inicializar videos';
+        });
+      }
+
+      // Evento AR Ready
+      sceneEl.addEventListener('arReady', () => {
+        console.log('AR System Ready');
+        status.textContent = '📷 Cámara lista, cargando videos...';
+        initializeVideoSystem();
       });
-    });
 
-    // Eventos para target 0 (video 1)
-    const target0 = document.querySelector('[mindar-image-target="targetIndex: 0"]');
-    target0.addEventListener('targetFound', event => {
-      console.log("Target 0 encontrado");
-      statusEl.textContent = '✅ Target 1 detectado (BigBuckBunny)';
-      video1.play();
-    });
-    target0.addEventListener('targetLost', event => {
-      console.log("Target 0 perdido");
-      statusEl.textContent = '❌ Target 1 perdido';
-      video1.pause();
-    });
+      // Evento AR Error
+      sceneEl.addEventListener('arError', (event) => {
+        console.error('AR Error:', event.detail);
+        status.textContent = '❌ Error de AR - Recarga la página';
+      });
 
-    // Eventos para target 1 (video 2)
-    const target1 = document.querySelector('[mindar-image-target="targetIndex: 1"]');
-    target1.addEventListener('targetFound', event => {
-      console.log("Target 1 encontrado");
-      statusEl.textContent = '✅ Target 2 detectado (ElephantsDream)';
-      video2.play();
-    });
-    target1.addEventListener('targetLost', event => {
-      console.log("Target 1 perdido");
-      statusEl.textContent = '❌ Target 2 perdido';
-      video2.pause();
-    });
+      // Eventos Target 0
+      const target0 = document.querySelector('[mindar-image-target="targetIndex: 0"]');
+      target0.addEventListener('targetFound', () => {
+        console.log('Target 0 Found');
+        target0Detected = true;
+        status.textContent = '🎬 Target 1 detectado - Reproduciendo video';
+        
+        video1.play().then(() => {
+          console.log('Video 1 playing');
+          updateDebug();
+        }).catch(error => {
+          console.error('Video 1 play error:', error);
+          status.textContent = '❌ Error al reproducir video 1';
+        });
+      });
 
-    // Manejo de errores de cámara
-    window.addEventListener('arError', (event) => {
-      console.error('AR Error:', event);
-      statusEl.textContent = '❌ Error de AR';
+      target0.addEventListener('targetLost', () => {
+        console.log('Target 0 Lost');
+        target0Detected = false;
+        status.textContent = '📷 Target 1 perdido';
+        video1.pause();
+        updateDebug();
+      });
+
+      // Eventos Target 1
+      const target1 = document.querySelector('[mindar-image-target="targetIndex: 1"]');
+      target1.addEventListener('targetFound', () => {
+        console.log('Target 1 Found');
+        target1Detected = true;
+        status.textContent = '🎬 Target 2 detectado - Reproduciendo video';
+        
+        video2.play().then(() => {
+          console.log('Video 2 playing');
+          updateDebug();
+        }).catch(error => {
+          console.error('Video 2 play error:', error);
+          status.textContent = '❌ Error al reproducir video 2';
+        });
+      });
+
+      target1.addEventListener('targetLost', () => {
+        console.log('Target 1 Lost');
+        target1Detected = false;
+        status.textContent = '📷 Target 2 perdido';
+        video2.pause();
+        updateDebug();
+      });
+
+      // Eventos de error de videos
+      video1.addEventListener('error', (e) => {
+        console.error('Video 1 Error:', e);
+        console.error('Video 1 error code:', video1.error ? video1.error.code : 'unknown');
+      });
+
+      video2.addEventListener('error', (e) => {
+        console.error('Video 2 Error:', e);
+        console.error('Video 2 error code:', video2.error ? video2.error.code : 'unknown');
+      });
+
+      // Mostrar debug info con doble click
+      let clickCount = 0;
+      document.addEventListener('click', () => {
+        clickCount++;
+        if (clickCount === 2) {
+          debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+          clickCount = 0;
+        }
+        setTimeout(() => clickCount = 0, 500);
+      });
     });
   </script>
 </body>
